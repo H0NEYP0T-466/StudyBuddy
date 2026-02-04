@@ -1,0 +1,161 @@
+.notes-generator {
+  animation: fadeIn 0.3s ease;
+}
+
+.generator-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.generator-header h1 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.generator-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.generator-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.generator-card h3 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+}
+
+.config-input, .config-select {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: 1rem;
+}
+
+.folder-select-button {
+  width: 100%;
+  padding: var(--spacing-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  transition: all 0.2s ease;
+}
+
+.folder-select-button:hover {
+  border-color: var(--accent);
+  background: var(--bg-panel-hover);
+}
+
+.generate-button {
+  width: 100%;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  margin-top: var(--spacing-md);
+  transition: all 0.2s ease;
+}
+
+.generate-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.generate-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.info-card {
+  background: var(--bg-alt);
+  border-color: var(--border-color);
+}
+
+.info-list {
+  list-style-position: inside;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-bottom: var(--spacing-lg);
+}
+
+.info-list li {
+  margin-bottom: var(--spacing-sm);
+}
+
+.model-info {
+  padding: var(--spacing-md);
+  background: var(--bg-panel);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent);
+}
+
+.model-info strong {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+.model-info p {
+  margin: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.folder-modal {
+  max-width: 600px;
+}
+
+.folders-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: var(--spacing-md);
+}
+
+.folder-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.folder-option:hover {
+  background: var(--bg-panel-hover);
+  border-color: var(--border-hover);
+}
+
+.folder-option.selected {
+  border-color: var(--accent);
+  background: var(--bg-panel-hover);
+}
+
+.folder-option .folder-icon {
+  font-size: 1.5rem;
+}
+
+.folder-option .folder-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .generator-content {
+    grid-template-columns: 1fr;
+  }
+}

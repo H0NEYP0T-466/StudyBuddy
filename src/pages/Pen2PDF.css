@@ -1,0 +1,241 @@
+.pen2pdf {
+  animation: fadeIn 0.3s ease;
+}
+
+.pen2pdf-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.pen2pdf-header h1 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.pen2pdf-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-panel);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropzone:hover, .dropzone.active {
+  border-color: var(--accent);
+  background: var(--bg-panel-hover);
+}
+
+.dropzone-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.upload-icon {
+  font-size: 3rem;
+}
+
+.dropzone-placeholder p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.dropzone-hint {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.file-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.file-icon {
+  font-size: 3rem;
+}
+
+.file-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.file-size {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.options-row {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.pages-input {
+  flex: 1;
+  padding: var(--spacing-md);
+  font-size: 1rem;
+}
+
+.extract-button {
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.extract-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.extract-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.toolbar-left, .toolbar-right {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.toolbar-button {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.toolbar-button:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.toolbar-button.active {
+  background: var(--accent);
+  color: white;
+}
+
+.export-button {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--success);
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.export-button:hover {
+  background: var(--success-hover);
+}
+
+.markdown-editor {
+  width: 100%;
+  min-height: 500px;
+  padding: var(--spacing-lg);
+  background: var(--bg-input);
+  border: none;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.markdown-preview {
+  padding: var(--spacing-lg);
+  min-height: 500px;
+  overflow-y: auto;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.markdown-preview p {
+  margin-bottom: var(--spacing-md);
+}
+
+.markdown-preview code {
+  background: var(--bg-alt);
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.markdown-preview pre {
+  background: var(--bg-alt);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin-bottom: var(--spacing-md);
+}
+
+.markdown-preview pre code {
+  background: none;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .options-row {
+    flex-direction: column;
+  }
+
+  .editor-toolbar {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .toolbar-left, .toolbar-right {
+    width: 100%;
+  }
+}

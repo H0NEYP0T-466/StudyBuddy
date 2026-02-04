@@ -1,0 +1,55 @@
+.week-counter {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.week-counter:hover {
+  border-color: var(--accent);
+}
+
+.week-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.week-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.week-counter-setup {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.week-counter-edit {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.week-counter-input {
+  padding: var(--spacing-sm);
+  font-size: 0.9rem;
+}
+
+.week-counter-save {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--success);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 0.9rem;
+}

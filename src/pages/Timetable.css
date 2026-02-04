@@ -1,0 +1,178 @@
+.timetable-page {
+  animation: fadeIn 0.3s ease;
+}
+
+.timetable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-xl);
+}
+
+.timetable-header h1 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.import-button {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.import-button:hover {
+  background: var(--bg-panel-hover);
+  border-color: var(--border-hover);
+}
+
+.add-button {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.add-button:hover {
+  background: var(--accent-hover);
+}
+
+.timetable-container {
+  overflow-x: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+}
+
+.timetable-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  gap: 2px;
+  min-width: 1000px;
+}
+
+.timetable-header-cell {
+  background: var(--bg-alt);
+  padding: var(--spacing-md);
+  font-weight: 600;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.timetable-time-cell {
+  background: var(--bg-alt);
+  padding: var(--spacing-sm);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.timetable-cell {
+  background: var(--bg-input);
+  padding: var(--spacing-xs);
+  min-height: 60px;
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+
+.timetable-entry {
+  background: var(--accent);
+  color: white;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 100%;
+  min-height: 54px;
+}
+
+.timetable-entry:hover {
+  background: var(--accent-hover);
+  transform: scale(1.02);
+}
+
+.entry-subject {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.entry-time {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-bottom: var(--spacing-xs);
+}
+
+.entry-details {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.form-row .form-group {
+  margin-bottom: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--spacing-xl);
+}
+
+.modal-actions-right {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.delete-button {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--danger);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.delete-button:hover {
+  background: var(--danger-hover);
+}
+
+@media (max-width: 768px) {
+  .timetable-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .import-button, .add-button {
+    width: 100%;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
