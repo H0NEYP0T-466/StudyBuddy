@@ -12,7 +12,7 @@ from app.routes import folders, notes, timetable, todos, assistant, pen2pdf
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    print("Starting Pen2PDF v2.0...")
+    print("Starting StudyBuddy...")
     await connect_to_mongo()
     
     # Initialize RAG system
@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Pen2PDF v2.0 API",
+    title="StudyBuddy",
     description="Complete productivity suite with AI-powered features",
     version="2.0.0",
     lifespan=lifespan
@@ -36,7 +36,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,7 +55,7 @@ app.include_router(pen2pdf.router)
 async def root():
     """Root endpoint."""
     return {
-        "message": "Welcome to Pen2PDF v2.0 API",
+        "message": "Welcome to StudyBuddy v2.0 API",
         "version": "2.0.0",
         "status": "running"
     }

@@ -35,9 +35,13 @@ async def create_folder(folder: dict):
     
     result = await db.folders.insert_one(folder_data)
     folder_data["id"] = str(result.inserted_id)
-    del folder_data["_id"] if "_id" in folder_data else None
+
+    # Safely remove MongoDB's _id key
+    if "_id" in folder_data:
+        del folder_data["_id"]
     
     return folder_data
+
 
 
 @router.get("/{folder_id}")

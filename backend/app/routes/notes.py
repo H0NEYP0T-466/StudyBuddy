@@ -63,7 +63,8 @@ async def create_note(note: dict):
         print(f"Error adding note to RAG: {e}")
     
     note_data["id"] = note_id
-    del note_data["_id"] if "_id" in note_data else None
+    if "_id" in note_data:
+        del note_data["_id"]
     
     return note_data
 

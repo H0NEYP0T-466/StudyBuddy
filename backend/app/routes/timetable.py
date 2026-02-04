@@ -48,7 +48,8 @@ async def create_timetable_entry(entry: dict):
     
     result = await db.timetable.insert_one(entry_data)
     entry_data["id"] = str(result.inserted_id)
-    del entry_data["_id"] if "_id" in entry_data else None
+    if "_id" in entry_data:
+        del entry_data["_id"]
     
     return entry_data
 

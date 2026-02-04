@@ -37,7 +37,9 @@ async def create_todo(todo: dict):
     
     result = await db.todos.insert_one(todo_data)
     todo_data["id"] = str(result.inserted_id)
-    del todo_data["_id"] if "_id" in todo_data else None
+    if "_id" in todo_data:
+        del todo_data["_id"]
+    
     
     return todo_data
 
