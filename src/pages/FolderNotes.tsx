@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -20,14 +20,7 @@ const FolderNotes = () => {
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) {
-      loadData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [notesRes, foldersRes] = await Promise.all([
         getNotes(Number(id)),
@@ -41,7 +34,13 @@ const FolderNotes = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadData();
+    }
+  }, [id, loadData]);
 
   const handleCreate = async () => {
     if (!formData.title.trim()) return;

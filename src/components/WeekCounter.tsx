@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './WeekCounter.css';
 
 const WeekCounter = () => {
@@ -6,12 +6,12 @@ const WeekCounter = () => {
   const [semesterStart, setSemesterStart] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
 
-  const calculateWeek = (startDate: string) => {
+  const calculateWeek = useCallback((startDate: string) => {
     const start = new Date(startDate);
     const today = new Date();
     const diff = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7));
     setWeekNumber(Math.max(1, diff + 1));
-  };
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('semesterStart');
@@ -26,7 +26,7 @@ const WeekCounter = () => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       calculateWeek(semesterStart);
     }
-  }, [semesterStart]);
+  }, [semesterStart, calculateWeek]);
 
   const handleSave = () => {
     localStorage.setItem('semesterStart', semesterStart);

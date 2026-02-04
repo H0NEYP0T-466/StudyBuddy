@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -26,12 +26,22 @@ const AIAssistant = () => {
     loadFolders();
   }, []);
 
+  const loadContextNotes = useCallback(async () => {
+    try {
+      const notesPromises = selectedFolders.map((folderId) => getNotes(folderId));
+      const notesResponses = await Promise.all(notesPromises);
+      const allNotes = notesResponses.flatMap((res) => res.data);
+      setContextNotes(allNotes);
+    } catch (error) {
+      console.error('Failed to load context notes:', error);
+    }
+  }, [selectedFolders]);
+
   useEffect(() => {
     if (selectedFolders.length > 0) {
       loadContextNotes();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFolders]);
+  }, [selectedFolders, loadContextNotes]);
 
   useEffect(() => {
     scrollToBottom();
@@ -43,17 +53,6 @@ const AIAssistant = () => {
       setFolders(response.data);
     } catch (error) {
       console.error('Failed to load folders:', error);
-    }
-  };
-
-  const loadContextNotes = async () => {
-    try {
-      const notesPromises = selectedFolders.map((folderId) => getNotes(folderId));
-      const notesResponses = await Promise.all(notesPromises);
-      const allNotes = notesResponses.flatMap((res) => res.data);
-      setContextNotes(allNotes);
-    } catch (error) {
-      console.error('Failed to load context notes:', error);
     }
   };
 
