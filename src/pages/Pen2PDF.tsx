@@ -47,18 +47,22 @@ const Pen2PDF = () => {
     
     setLoading(true);
     try {
+      console.log("extract click hova");
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('files', file);
       if (pages) formData.append('pages', pages);
       
       const response = await extractPen2PDF(formData);
+      console.log("req gyi");
       setMarkdown(response.data.markdown);
+      console.log("response a gya");
     } catch (error) {
       console.error('Extraction failed:', error);
       alert('Failed to extract document. Please try again.');
     } finally {
       setLoading(false);
     }
+    console.log("yaha tq sb thk h");
   };
 
   const handleExport = async (format: 'pdf' | 'docx' | 'markdown') => {

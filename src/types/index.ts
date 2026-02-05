@@ -68,9 +68,10 @@ export interface AssistantChatResponse {
   sources?: Note[];
 }
 
-export interface Pen2PDFExtractRequest {
-  file?: File;
-  pages?: string;
+// Change this to match your backend return key
+export interface Pen2PDFExtractResponse {
+  content: string; // Not 'text'
+  files_processed: number;
 }
 
 export interface Pen2PDFExtractResponse {
@@ -105,5 +106,5 @@ export const AI_MODELS = [
   { value: 'gpt-4o', label: 'GPT-4o (Best)' },
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast)' },
   { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
-  { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
 ];

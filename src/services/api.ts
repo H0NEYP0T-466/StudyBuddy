@@ -11,7 +11,7 @@ import type {
   NoteGenerateResponse,
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:8003/api';
+const API_BASE_URL = 'http://localhost:8003';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -87,7 +87,7 @@ export const chatWithAssistant = (data: AssistantChatRequest) =>
 
 // Pen2PDF
 export const extractPen2PDF = (formData: FormData) => 
-  api.post<Pen2PDFExtractResponse>('/pen2pdf/extract', formData, {
+  api.post<Pen2PDFExtractResponse>('/api/pen2pdf/extract', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
