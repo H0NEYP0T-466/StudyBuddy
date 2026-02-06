@@ -8,8 +8,15 @@ logger = logging.getLogger(__name__)
 class ConversationHistoryService:
     """Service to save conversation history to a text file."""
     
-    def __init__(self, data_dir: str = "backend/data"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, data_dir: str = None):
+        # Use absolute path based on this file's location
+        if data_dir is None:
+            base_dir = Path(__file__).parent.parent.parent  # Go up to backend/
+            data_dir = base_dir / "data"
+        else:
+            data_dir = Path(data_dir)
+        
+        self.data_dir = data_dir
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.history_file = self.data_dir / "history.txt"
         self.last_modified = None

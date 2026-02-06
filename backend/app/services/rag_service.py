@@ -10,9 +10,22 @@ from app.utils.file_processor import extract_text_from_file, chunk_text
 
 
 class RAGSystem:
-    def __init__(self, data_dir: str = "backend/data", index_dir: str = "backend/vector_store"):
-        self.data_dir = Path(data_dir)
-        self.index_dir = Path(index_dir)
+    def __init__(self, data_dir: str = None, index_dir: str = None):
+        # Use absolute paths based on this file's location
+        base_dir = Path(__file__).parent.parent.parent  # Go up to backend/
+        
+        if data_dir is None:
+            data_dir = base_dir / "data"
+        else:
+            data_dir = Path(data_dir)
+            
+        if index_dir is None:
+            index_dir = base_dir / "vector_store"
+        else:
+            index_dir = Path(index_dir)
+        
+        self.data_dir = data_dir
+        self.index_dir = index_dir
         self.index_dir.mkdir(parents=True, exist_ok=True)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
