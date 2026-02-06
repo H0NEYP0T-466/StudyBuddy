@@ -1,5 +1,6 @@
 import io
 import re
+import logging
 from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -9,6 +10,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -16,6 +19,19 @@ import markdown
 
 # Configuration
 WATERMARK_TEXT = "~honeypot"
+
+# Setup logging
+logger = logging.getLogger(__name__)
+
+# Register Unicode-compatible fonts for better emoji support
+try:
+    pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+    pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
+    pdfmetrics.registerFont(TTFont('DejaVuSans-Oblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf'))
+    FONTS_REGISTERED = True
+except Exception as e:
+    logger.warning(f"Could not register DejaVu fonts: {e}")
+    FONTS_REGISTERED = False
 
 
 class WatermarkCanvas(canvas.Canvas):
@@ -41,7 +57,9 @@ class WatermarkCanvas(canvas.Canvas):
     def add_watermark(self):
         """Add watermark at bottom right of page."""
         self.saveState()
-        self.setFont('Helvetica', 10)
+        # Use registered font if available, otherwise fallback to Helvetica
+        watermark_font = 'DejaVuSans' if FONTS_REGISTERED else 'Helvetica'
+        self.setFont(watermark_font, 10)
         self.setFillColorRGB(0.6, 0.6, 0.6)  # Gray color
         # Position at bottom right (with some padding)
         self.drawRightString(letter[0] - 0.5*inch, 0.5*inch, WATERMARK_TEXT)
@@ -71,15 +89,49 @@ class ExportService:
             canvasmaker=WatermarkCanvas if add_watermark else canvas.Canvas
         )
         
-        # Styles
+        # Styles - Use DejaVu Sans for better Unicode/emoji support
         styles = getSampleStyleSheet()
+        
+        # Choose font based on availability
+        base_font = 'DejaVuSans' if FONTS_REGISTERED else 'Helvetica'
+        bold_font = 'DejaVuSans-Bold' if FONTS_REGISTERED else 'Helvetica-Bold'
+        
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
+            fontName=base_font,
             fontSize=24,
             textColor='#333333',
             spaceAfter=30,
             alignment=TA_CENTER
+        )
+        
+        heading1_style = ParagraphStyle(
+            'CustomHeading1',
+            parent=styles['Heading1'],
+            fontName=bold_font,
+            fontSize=18,
+        )
+        
+        heading2_style = ParagraphStyle(
+            'CustomHeading2',
+            parent=styles['Heading2'],
+            fontName=bold_font,
+            fontSize=14,
+        )
+        
+        heading3_style = ParagraphStyle(
+            'CustomHeading3',
+            parent=styles['Heading3'],
+            fontName=bold_font,
+            fontSize=12,
+        )
+        
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['BodyText'],
+            fontName=base_font,
+            fontSize=11,
         )
         
         # Build document
@@ -95,23 +147,34 @@ class ExportService:
             if line.strip():
                 # Simple markdown to HTML conversion for basic formatting
                 if line.startswith('# '):
-                    para = Paragraph(line[2:], styles['Heading1'])
+                    line_text = line[2:]
+                    line_safe = escape(line_text)
+                    para = Paragraph(line_safe, heading1_style)
                 elif line.startswith('## '):
-                    para = Paragraph(line[3:], styles['Heading2'])
+                    line_text = line[3:]
+                    line_safe = escape(line_text)
+                    para = Paragraph(line_safe, heading2_style)
                 elif line.startswith('### '):
-                    para = Paragraph(line[4:], styles['Heading3'])
+                    line_text = line[4:]
+                    line_safe = escape(line_text)
+                    para = Paragraph(line_safe, heading3_style)
                 else:
                     # Convert markdown to HTML safely
-                    # Escape special XML characters but preserve emojis
+                    # Escape special XML characters but preserve Unicode characters (including emojis)
                     line_safe = escape(line)
                     
-                    # Convert **text** to <b>text</b> (greedy match for pairs)
+                    # Important: Process bold (**/__) before italic (*/_) to avoid conflicts
+                    # Convert **text** to <b>text</b> (non-greedy match for pairs)
                     line_safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', line_safe)
                     # Convert __text__ to <b>text</b>
                     line_safe = re.sub(r'__(.+?)__', r'<b>\1</b>', line_safe)
+                    # Convert *text* to <i>text</i>
+                    line_safe = re.sub(r'\*(.+?)\*', r'<i>\1</i>', line_safe)
+                    # Convert _text_ to <i>text</i>
+                    line_safe = re.sub(r'_(.+?)_', r'<i>\1</i>', line_safe)
                     
                     # Use UTF-8 encoding to support emojis
-                    para = Paragraph(line_safe, styles['BodyText'])
+                    para = Paragraph(line_safe, body_style)
                 story.append(para)
                 story.append(Spacer(1, 0.1 * inch))
         
