@@ -21,31 +21,31 @@ const api = axios.create({
 });
 
 // Folders
-export const getFolders = () => api.get<Folder[]>('/folders');
+export const getFolders = () => api.get<Folder[]>('/api/folders');
 export const createFolder = (data: { name: string; color: string }) => 
-  api.post<Folder>('/folders', data);
+  api.post<Folder>('/api/folders', data);
 export const updateFolder = (id: number, data: { name?: string; color?: string }) => 
-  api.put<Folder>(`/folders/${id}`, data);
-export const deleteFolder = (id: number) => api.delete(`/folders/${id}`);
+  api.put<Folder>(`/api/folders/${id}`, data);
+export const deleteFolder = (id: number) => api.delete(`/api/folders/${id}`);
 
 // Notes
 export const getNotes = (folderId?: number) => 
-  api.get<Note[]>('/notes', { params: { folder_id: folderId } });
-export const getNoteById = (id: number) => api.get<Note>(`/notes/${id}`);
+  api.get<Note[]>('/api/notes', { params: { folder_id: folderId } });
+export const getNoteById = (id: number) => api.get<Note>(`/api/notes/${id}`);
 export const createNote = (data: { title: string; content: string; folder_id?: number }) => 
-  api.post<Note>('/notes', data);
+  api.post<Note>('/api/notes', data);
 export const updateNote = (id: number, data: { title?: string; content?: string; folder_id?: number }) => 
-  api.put<Note>(`/notes/${id}`, data);
-export const deleteNote = (id: number) => api.delete(`/notes/${id}`);
+  api.put<Note>(`/api/notes/${id}`, data);
+export const deleteNote = (id: number) => api.delete(`/api/notes/${id}`);
 export const generateNotes = (formData: FormData) => 
-  api.post<NoteGenerateResponse>('/notes/generate', formData, {
+  api.post<NoteGenerateResponse>('/api/notes/generate', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 export const searchNotes = (query: string) => 
-  api.get<Note[]>('/notes/search', { params: { q: query } });
+  api.get<Note[]>('/api/notes/search', { params: { q: query } });
 
 // Timetable
-export const getTimetable = () => api.get<TimetableEntry[]>('/timetable');
+export const getTimetable = () => api.get<TimetableEntry[]>('/api/timetable');
 export const createTimetableEntry = (data: {
   day: string;
   start_time: string;
@@ -53,33 +53,33 @@ export const createTimetableEntry = (data: {
   subject: string;
   type: string;
   location: string;
-}) => api.post<TimetableEntry>('/timetable', data);
+}) => api.post<TimetableEntry>('/api/timetable', data);
 export const updateTimetableEntry = (id: number, data: Partial<TimetableEntry>) => 
-  api.put<TimetableEntry>(`/timetable/${id}`, data);
-export const deleteTimetableEntry = (id: number) => api.delete(`/timetable/${id}`);
+  api.put<TimetableEntry>(`/api/timetable/${id}`, data);
+export const deleteTimetableEntry = (id: number) => api.delete(`/api/timetable/${id}`);
 export const importTimetable = (formData: FormData) => 
-  api.post<{ message: string; entries_created: number }>('/timetable/import', formData, {
+  api.post<{ message: string; entries_created: number }>('/api/timetable/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
 // Todos
-export const getTodos = () => api.get<Todo[]>('/todos');
+export const getTodos = () => api.get<Todo[]>('/api/todos');
 export const createTodo = (data: { 
   title: string; 
   description?: string; 
   due_date?: string | null;
-}) => api.post<Todo>('/todos', data);
+}) => api.post<Todo>('/api/todos', data);
 export const updateTodo = (id: number, data: Partial<Todo>) => 
-  api.put<Todo>(`/todos/${id}`, data);
-export const deleteTodo = (id: number) => api.delete(`/todos/${id}`);
+  api.put<Todo>(`/api/todos/${id}`, data);
+export const deleteTodo = (id: number) => api.delete(`/api/todos/${id}`);
 
 // Subtasks
 export const createSubtask = (todoId: number, data: { title: string }) => 
-  api.post<Subtask>(`/todos/${todoId}/subtasks`, data);
+  api.post<Subtask>(`/api/todos/${todoId}/subtasks`, data);
 export const updateSubtask = (todoId: number, subtaskId: number, data: { title?: string; completed?: boolean }) => 
-  api.put<Subtask>(`/todos/${todoId}/subtasks/${subtaskId}`, data);
+  api.put<Subtask>(`/api/todos/${todoId}/subtasks/${subtaskId}`, data);
 export const deleteSubtask = (todoId: number, subtaskId: number) => 
-  api.delete(`/todos/${todoId}/subtasks/${subtaskId}`);
+  api.delete(`/api/todos/${todoId}/subtasks/${subtaskId}`);
 
 // Assistant
 export const chatWithAssistant = (data: AssistantChatRequest) => {
@@ -95,7 +95,7 @@ export const chatWithAssistant = (data: AssistantChatRequest) => {
     formData.append('folder_ids', JSON.stringify(data.folder_ids));
   }
   
-  return api.post<AssistantChatResponse>('/assistant/chat', formData, {
+  return api.post<AssistantChatResponse>('/api/assistant/chat', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
