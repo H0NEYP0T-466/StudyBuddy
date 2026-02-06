@@ -181,8 +181,8 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
             text = format_inline_markdown(text)
             list_items.append(Paragraph(f"• {text}", styles['CustomBody']))
             in_list = True
-        elif line.strip().startswith(('1. ', '2. ', '3. ', '4. ', '5. ', '6. ', '7. ', '8. ', '9. ')):
-            # Numbered list
+        elif re.match(r'^\d+\.\s', line.strip()):
+            # Numbered list (supports any number)
             match = re.match(r'^(\d+)\.\s+(.+)', line.strip())
             if match:
                 num, text = match.groups()
@@ -228,24 +228,31 @@ def format_inline_markdown(text: str) -> str:
     """
     Format inline markdown elements like bold, italic, code, and LaTeX.
     Converts to ReportLab XML markup.
+    
+    Note: ReportLab's Paragraph class handles XML-like markup, so we don't
+    escape angle brackets for bold/italic tags that we intentionally add.
     """
-    # Escape XML special characters first
-    text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    # First, escape only ampersands in user content (< and > are OK for our XML tags)
+    text = text.replace('&', '&amp;')
     
-    # Handle LaTeX inline math $...$
-    text = re.sub(r'\$([^\$]+)\$', r'<i>\1</i>', text)
+    # Handle LaTeX inline math $...$ (convert to italic)
+    # Use non-greedy match and handle single $ expressions
+    text = re.sub(r'\$([^$]+?)\$', r'<i>\1</i>', text)
     
-    # Handle bold + italic ***text*** or ___text___
+    # Handle bold + italic first (before individual patterns)
+    # ***text*** or ___text___
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
     text = re.sub(r'___(.+?)___', r'<b><i>\1</i></b>', text)
     
-    # Handle bold **text** or __text__
+    # Handle bold **text** (use ** for bold, not __ to avoid conflicts with Python identifiers)
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    text = re.sub(r'__(.+?)__', r'<b>\1</b>', text)
     
-    # Handle italic *text* or _text_
-    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
-    text = re.sub(r'_(.+?)_', r'<i>\1</i>', text)
+    # Handle italic *text* (be careful not to match mid-word asterisks)
+    text = re.sub(r'(?<!\w)\*([^*]+?)\*(?!\w)', r'<i>\1</i>', text)
+    
+    # Handle italic _text_ (be careful with underscores in identifiers like __init__)
+    # Only match single underscores that are not adjacent to other underscores
+    text = re.sub(r'(?<![_a-zA-Z0-9])_([^_]+?)_(?![_a-zA-Z0-9])', r'<i>\1</i>', text)
     
     # Handle inline code `code`
     text = re.sub(r'`([^`]+)`', r'<font name="Courier" color="#333333">\1</font>', text)
