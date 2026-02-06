@@ -1,5 +1,6 @@
 import io
 import re
+import logging
 from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -19,6 +20,9 @@ import markdown
 # Configuration
 WATERMARK_TEXT = "~honeypot"
 
+# Setup logging
+logger = logging.getLogger(__name__)
+
 # Register Unicode-compatible fonts for better emoji support
 try:
     pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
@@ -26,7 +30,7 @@ try:
     pdfmetrics.registerFont(TTFont('DejaVuSans-Oblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf'))
     FONTS_REGISTERED = True
 except Exception as e:
-    print(f"Warning: Could not register DejaVu fonts: {e}")
+    logger.warning(f"Could not register DejaVu fonts: {e}")
     FONTS_REGISTERED = False
 
 
@@ -159,6 +163,7 @@ class ExportService:
                     # Escape special XML characters but preserve Unicode characters (including emojis)
                     line_safe = escape(line)
                     
+                    # Important: Process bold (**/__) before italic (*/_) to avoid conflicts
                     # Convert **text** to <b>text</b> (non-greedy match for pairs)
                     line_safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', line_safe)
                     # Convert __text__ to <b>text</b>
