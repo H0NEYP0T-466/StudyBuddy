@@ -1,10 +1,17 @@
 /* Modern ChatGPT-like AI Assistant */
 .ai-assistant-new {
-  height: calc(100vh - 180px);
+  height: 100vh;
   display: flex;
   flex-direction: column;
   animation: fadeIn 0.3s ease;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--spacing-lg);
+  background: var(--bg-primary);
+  z-index: 10;
 }
 
 /* Error Toast */
@@ -89,9 +96,10 @@
   display: flex;
   flex-direction: column;
   background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: 0;
   overflow: hidden;
+  flex: 1;
 }
 
 /* Messages Container */
@@ -481,8 +489,8 @@
 /* Context Panel (Notes) */
 .context-panel-new {
   background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: 0;
   padding: var(--spacing-lg);
   overflow-y: auto;
   display: flex;
