@@ -98,40 +98,40 @@ const Pen2PDF = () => {
     const selectedText = text.substring(start, end);
 
     let newText = '';
-    let cursorOffset = 0;
+    let newPosition = start;
 
     switch (syntax) {
       case 'h1':
         newText = text.substring(0, start) + '# ' + selectedText + text.substring(end);
-        cursorOffset = 2;
+        newPosition = selectedText ? end + 2 : start + 2;
         break;
       case 'h2':
         newText = text.substring(0, start) + '## ' + selectedText + text.substring(end);
-        cursorOffset = 3;
+        newPosition = selectedText ? end + 3 : start + 3;
         break;
       case 'h3':
         newText = text.substring(0, start) + '### ' + selectedText + text.substring(end);
-        cursorOffset = 4;
+        newPosition = selectedText ? end + 4 : start + 4;
         break;
       case 'bold':
         newText = text.substring(0, start) + '**' + selectedText + '**' + text.substring(end);
-        cursorOffset = 2;
+        newPosition = selectedText ? end + 4 : start + 2;
         break;
       case 'italic':
         newText = text.substring(0, start) + '*' + selectedText + '*' + text.substring(end);
-        cursorOffset = 1;
+        newPosition = selectedText ? end + 2 : start + 1;
         break;
       case 'bullet':
         newText = text.substring(0, start) + '- ' + selectedText + text.substring(end);
-        cursorOffset = 2;
+        newPosition = selectedText ? end + 2 : start + 2;
         break;
       case 'numbered':
         newText = text.substring(0, start) + '1. ' + selectedText + text.substring(end);
-        cursorOffset = 3;
+        newPosition = selectedText ? end + 3 : start + 3;
         break;
       case 'code':
         newText = text.substring(0, start) + '```\n' + selectedText + '\n```' + text.substring(end);
-        cursorOffset = 4;
+        newPosition = selectedText ? end + 9 : start + 4;
         break;
       default:
         return;
@@ -141,7 +141,6 @@ const Pen2PDF = () => {
     
     setTimeout(() => {
       textarea.focus();
-      const newPosition = selectedText ? end + cursorOffset * 2 : start + cursorOffset;
       textarea.setSelectionRange(newPosition, newPosition);
     }, 0);
   };
