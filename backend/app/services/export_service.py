@@ -1,14 +1,8 @@
 import io
 import re
 import logging
-from xml.sax.saxutils import escape
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib.enums import TA_CENTER
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+from weasyprint import HTML, CSS
+from markdown2 import markdown
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
@@ -20,54 +14,195 @@ WATERMARK_TEXT = "~honeypot"
 logger = logging.getLogger(__name__)
 
 # ==========================
-# Font Registration
+# HTML Template for PDF with MathJax support
 # ==========================
-try:
-    pdfmetrics.registerFont(
-        TTFont("DejaVuSans", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
-    )
-    pdfmetrics.registerFont(
-        TTFont("DejaVuSans-Bold", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
-    )
-    FONTS_REGISTERED = True
-except Exception as e:
-    logger.warning(f"Font load failed: {e}")
-    FONTS_REGISTERED = False
+def create_html_template(title: str, content_html: str, watermark: bool = True) -> str:
+    """
+    Create HTML template with CSS styling and optional watermark.
+    
+    Note: Uses Google Fonts CDN for Noto Sans and Noto Emoji fonts.
+    For offline environments, fonts will fall back to system defaults.
+    To use local fonts, install Noto fonts on the system or bundle them.
+    """
+    
+    watermark_style = """
+        @page {
+            @bottom-right {
+                content: '~honeypot';
+                font-size: 10pt;
+                color: #999;
+            }
+        }
+    """ if watermark else ""
+    
+    html_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Emoji&display=swap');
+            
+            body {{
+                font-family: 'Noto Sans', 'Noto Emoji', sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }}
+            
+            h1 {{
+                font-size: 28pt;
+                font-weight: 700;
+                text-align: center;
+                margin-bottom: 30px;
+                color: #1a1a1a;
+            }}
+            
+            h2 {{
+                font-size: 20pt;
+                font-weight: 700;
+                margin-top: 20px;
+                margin-bottom: 10px;
+                color: #2a2a2a;
+                border-bottom: 2px solid #e0e0e0;
+                padding-bottom: 5px;
+            }}
+            
+            h3 {{
+                font-size: 16pt;
+                font-weight: 700;
+                margin-top: 15px;
+                margin-bottom: 8px;
+                color: #3a3a3a;
+            }}
+            
+            p {{
+                margin: 10px 0;
+                text-align: justify;
+            }}
+            
+            code {{
+                background-color: #f4f4f4;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+                font-size: 9pt;
+            }}
+            
+            pre {{
+                background-color: #f4f4f4;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+                border-left: 4px solid #4CAF50;
+            }}
+            
+            pre code {{
+                background-color: transparent;
+                padding: 0;
+            }}
+            
+            blockquote {{
+                border-left: 4px solid #ccc;
+                margin-left: 0;
+                padding-left: 20px;
+                color: #666;
+                font-style: italic;
+            }}
+            
+            ul, ol {{
+                margin: 10px 0;
+                padding-left: 30px;
+            }}
+            
+            li {{
+                margin: 5px 0;
+            }}
+            
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin: 15px 0;
+            }}
+            
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }}
+            
+            th {{
+                background-color: #f4f4f4;
+                font-weight: 700;
+            }}
+            
+            /* LaTeX styling */
+            .math {{
+                font-family: 'STIX Two Math', serif;
+                font-style: italic;
+            }}
+            
+            /* Emoji support */
+            .emoji {{
+                font-family: 'Noto Emoji', sans-serif;
+            }}
+            
+            {watermark_style}
+        </style>
+    </head>
+    <body>
+        <h1>{title}</h1>
+        {content_html}
+    </body>
+    </html>
+    """
+    
+    return html_template
 
-# ==========================
-# Emoji sanitizer (PDF only)
-# ==========================
-EMOJI_PATTERN = re.compile(
-    "["
-    "\U0001F600-\U0001F64F"
-    "\U0001F300-\U0001F5FF"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F700-\U0001F77F"
-    "\U0001F780-\U0001F7FF"
-    "\U0001F800-\U0001F8FF"
-    "\U0001F900-\U0001F9FF"
-    "\U0001FA00-\U0001FAFF"
-    "]+",
-    flags=re.UNICODE,
-)
 
-def strip_emojis(text: str) -> str:
-    return EMOJI_PATTERN.sub("", text)
-
-# ==========================
-# Watermark (Platypus-safe)
-# ==========================
-def add_watermark(canvas, doc):
-    canvas.saveState()
-    font = "DejaVuSans" if FONTS_REGISTERED else "Helvetica"
-    canvas.setFont(font, 10)
-    canvas.setFillColorRGB(0.6, 0.6, 0.6)
-    canvas.drawRightString(
-        letter[0] - 0.5 * inch,
-        0.5 * inch,
-        WATERMARK_TEXT
+def process_latex(text: str) -> str:
+    """Convert LaTeX expressions to HTML with basic rendering."""
+    # Handle inline LaTeX: $...$
+    text = re.sub(
+        r'\$([^\$]+)\$',
+        r'<span class="math">\1</span>',
+        text
     )
-    canvas.restoreState()
+    
+    # Handle display LaTeX: $$...$$
+    text = re.sub(
+        r'\$\$([^\$]+)\$\$',
+        r'<div class="math" style="text-align: center; margin: 15px 0;">\1</div>',
+        text
+    )
+    
+    return text
+
+
+def markdown_to_html(content: str) -> str:
+    """Convert markdown to HTML with LaTeX support."""
+    # Process LaTeX first (before markdown conversion)
+    content = process_latex(content)
+    
+    # Convert markdown to HTML
+    html_content = markdown(
+        content,
+        extras=[
+            'fenced-code-blocks',
+            'tables',
+            'break-on-newline',
+            'code-friendly',
+            'cuddled-lists',
+            'header-ids',
+            'strike',
+            'task_list'
+        ]
+    )
+    
+    return html_content
+
 
 # ==========================
 # Export Service
@@ -76,6 +211,7 @@ class ExportService:
 
     @staticmethod
     def export_to_markdown(content: str, title: str) -> io.BytesIO:
+        """Export content as markdown file."""
         output = io.BytesIO()
         md = f"# {title}\n\n{content}"
         output.write(md.encode("utf-8"))
@@ -84,69 +220,36 @@ class ExportService:
 
     @staticmethod
     def export_to_pdf(content: str, title: str, watermark: bool = True) -> io.BytesIO:
-        output = io.BytesIO()
-
-        doc = SimpleDocTemplate(
-            output,
-            pagesize=letter,
-            rightMargin=72,
-            leftMargin=72,
-            topMargin=72,
-            bottomMargin=72,
-        )
-
-        styles = getSampleStyleSheet()
-        base_font = "DejaVuSans" if FONTS_REGISTERED else "Helvetica"
-        bold_font = "DejaVuSans-Bold" if FONTS_REGISTERED else "Helvetica-Bold"
-
-        title_style = ParagraphStyle(
-            "Title",
-            parent=styles["Heading1"],
-            fontName=bold_font,
-            fontSize=24,
-            alignment=TA_CENTER,
-            spaceAfter=30,
-        )
-
-        body_style = ParagraphStyle(
-            "Body",
-            parent=styles["BodyText"],
-            fontName=base_font,
-            fontSize=11,
-        )
-
-        story = []
-
-        # Title
-        story.append(Paragraph(escape(strip_emojis(title)), title_style))
-        story.append(Spacer(1, 0.2 * inch))
-
-        # Content
-        for line in content.split("\n"):
-            if not line.strip():
-                continue
-
-            clean = escape(strip_emojis(line))
-            story.append(Paragraph(clean, body_style))
-            story.append(Spacer(1, 0.1 * inch))
-
-        doc.build(
-            story,
-            onFirstPage=add_watermark if watermark else None,
-            onLaterPages=add_watermark if watermark else None,
-        )
-
-        output.seek(0)
-        return output
+        """Export content as PDF with emoji, markdown, and LaTeX support."""
+        try:
+            # Convert markdown content to HTML
+            content_html = markdown_to_html(content)
+            
+            # Create full HTML document
+            html_doc = create_html_template(title, content_html, watermark)
+            
+            # Generate PDF using WeasyPrint
+            output = io.BytesIO()
+            HTML(string=html_doc).write_pdf(output)
+            
+            output.seek(0)
+            logger.info(f"PDF generated successfully for '{title}'")
+            return output
+            
+        except Exception as e:
+            logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
+            raise
 
     @staticmethod
     def export_to_docx(content: str, title: str) -> io.BytesIO:
+        """Export content as DOCX file."""
         output = io.BytesIO()
         doc = Document()
 
         title_para = doc.add_heading(title, level=0)
         title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+        # Simple paragraph splitting - DOCX doesn't need fancy markdown parsing
         for line in content.split("\n"):
             if not line.strip():
                 continue

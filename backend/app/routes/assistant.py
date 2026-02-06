@@ -8,6 +8,7 @@ from app.services.rag_service import get_rag_system
 from app.services.gemini_service import gemini_service
 from app.services.longcat_service import longcat_service
 from app.services.github_models_service import github_models_service
+from app.services.conversation_history_service import conversation_history_service
 from app.utils.logger import get_logger
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
@@ -197,6 +198,12 @@ async def chat_with_assistant(
             logger.debug("Messages saved to database")
         except Exception as e:
             logger.warning(f"Failed to save messages to database: {str(e)}")
+        
+        # Save conversation to history.txt file
+        try:
+            conversation_history_service.save_conversation(message, response_text, model)
+        except Exception as e:
+            logger.warning(f"Failed to save conversation to history file: {str(e)}")
         
         # Final log summary
         logger.info(f"=== Chat Completed Successfully ===")

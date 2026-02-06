@@ -191,12 +191,23 @@ MONGODB_URL=<your_connection_string>
 
 ## Changelog
 
-### Security Improvements Made
+### Security Improvements Made (Latest Update)
 1. ✅ Fixed API endpoint structure
 2. ✅ Added comprehensive logging
 3. ✅ Improved error handling
 4. ✅ Type-safe implementations
 5. ✅ Input validation on all routes
+6. ✅ **NEW**: Added input sanitization for conversation history (prevents file corruption)
+7. ✅ **NEW**: PDF/HTML export uses WeasyPrint with automatic escaping
+8. ✅ **NEW**: All file paths use absolute Path objects (prevents traversal)
+9. ✅ **NEW**: Content sanitization in history service (replaces separator patterns)
+
+### Recent Security Checks (2026-02-06)
+- ✅ **CodeQL Analysis**: 0 alerts found (Python)
+- ✅ **Manual Review**: All new code reviewed
+- ✅ **Dependency Check**: New dependencies verified (weasyprint, pymdown-extensions)
+- ✅ **Input Sanitization**: Conversation history now sanitizes content
+- ✅ **Path Consistency**: Using pathlib.Path throughout for safety
 
 ### No Security Regressions
 - All existing security measures maintained

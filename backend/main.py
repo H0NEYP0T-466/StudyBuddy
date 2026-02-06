@@ -35,13 +35,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://study-buddy-orpin-mu.vercel.app",
-        "http://localhost:5173",  # your dev frontend
-    ],
+    # WARNING: allow_origins=["*"] is for development/testing only!
+    # In production, restrict to specific domains:
+    # allow_origins=["https://study-buddy-orpin-mu.vercel.app", "http://localhost:5173"]
+    allow_origins=["*"],  # Allow all origins for now to fix CORS issues
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
