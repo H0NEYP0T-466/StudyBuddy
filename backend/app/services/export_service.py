@@ -1,5 +1,7 @@
 import io
 import re
+import sys
+import asyncio
 import logging
 from playwright.async_api import async_playwright
 from markdown2 import markdown
@@ -193,6 +195,39 @@ def markdown_to_html(content: str) -> str:
     return html_content
 
 
+async def _generate_pdf_async(html_doc: str, watermark: bool) -> bytes:
+    """Helper function to generate PDF with Playwright."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
+        
+        # Set content and wait for fonts to load
+        await page.set_content(html_doc, wait_until='load')
+        
+        # Wait for fonts to be ready
+        await page.evaluate('document.fonts.ready')
+        
+        # Prepare footer template for watermark (uses WATERMARK_TEXT constant)
+        footer_template = f'<div style="font-size: 10pt; color: #999; text-align: right; width: 100%; padding-right: 20px;">{WATERMARK_TEXT}</div>' if watermark else ''
+        
+        # Generate PDF with proper settings
+        pdf_bytes = await page.pdf(
+            format='A4',
+            print_background=True,
+            margin={
+                'top': '20px',
+                'right': '20px',
+                'bottom': '40px' if watermark else '20px',
+                'left': '20px'
+            },
+            display_header_footer=watermark,
+            footer_template=footer_template
+        )
+        
+        await browser.close()
+        return pdf_bytes
+
+
 # ==========================
 # Export Service
 # ==========================
@@ -220,37 +255,31 @@ class ExportService:
             # Generate PDF using Playwright (Chromium)
             output = io.BytesIO()
             
-            async with async_playwright() as p:
-                browser = await p.chromium.launch()
-                page = await browser.new_page()
+            # Windows-specific fix: Run Playwright in a thread with correct event loop policy
+            if sys.platform == "win32":
+                import concurrent.futures
                 
-                # Set content and wait for fonts to load
-                await page.set_content(html_doc, wait_until='load')
+                def run_playwright_in_thread():
+                    """Run Playwright in a separate thread with WindowsSelectorEventLoopPolicy."""
+                    # Create new event loop with correct policy for Windows
+                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    
+                    try:
+                        return new_loop.run_until_complete(_generate_pdf_async(html_doc, watermark))
+                    finally:
+                        new_loop.close()
                 
-                # Wait for fonts to be ready
-                await page.evaluate('document.fonts.ready')
-                
-                # Prepare footer template for watermark (uses WATERMARK_TEXT constant)
-                footer_template = f'<div style="font-size: 10pt; color: #999; text-align: right; width: 100%; padding-right: 20px;">{WATERMARK_TEXT}</div>' if watermark else ''
-                
-                # Generate PDF with proper settings
-                pdf_bytes = await page.pdf(
-                    format='A4',
-                    print_background=True,
-                    margin={
-                        'top': '20px',
-                        'right': '20px',
-                        'bottom': '40px' if watermark else '20px',
-                        'left': '20px'
-                    },
-                    display_header_footer=watermark,
-                    footer_template=footer_template
-                )
-                
-                await browser.close()
-                
-                output.write(pdf_bytes)
+                # Run in thread pool to avoid event loop conflicts
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(run_playwright_in_thread)
+                    pdf_bytes = future.result()
+            else:
+                # On non-Windows platforms, use direct async approach
+                pdf_bytes = await _generate_pdf_async(html_doc, watermark)
             
+            output.write(pdf_bytes)
             output.seek(0)
             logger.info(f"PDF generated successfully for '{title}' using Playwright")
             return output
