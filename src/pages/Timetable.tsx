@@ -20,6 +20,7 @@ const Timetable = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimetableEntry | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<TimetableEntry | null>(null);
   const [formData, setFormData] = useState({
     day: 'Monday' as Day,
     start_time: '09:00',
@@ -73,10 +74,18 @@ const Timetable = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this timetable entry?')) return;
+    const entryToDelete = entries.find(e => e.id === id);
+    if (entryToDelete) {
+      setDeletingEntry(entryToDelete);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingEntry) return;
     
     try {
-      await deleteTimetableEntry(id);
+      await deleteTimetableEntry(deletingEntry.id);
+      setDeletingEntry(null);
       loadTimetable();
     } catch (error) {
       console.error('Failed to delete entry:', error);
@@ -170,19 +179,19 @@ const Timetable = () => {
 
       <div className="timetable-container">
         <div className="timetable-grid">
-          <div className="timetable-header-cell">Time</div>
-          {DAYS.map((day) => (
-            <div key={day} className="timetable-header-cell">
-              {day}
+          <div className="timetable-corner-cell"></div>
+          {TIME_SLOTS.map((time) => (
+            <div key={`time-${time}`} className="timetable-header-cell time-header">
+              {time}
             </div>
           ))}
 
-          {TIME_SLOTS.map((time) => (
+          {DAYS.map((day) => (
             <>
-              <div key={`time-${time}`} className="timetable-time-cell">
-                {time}
+              <div key={`day-${day}`} className="timetable-header-cell day-header">
+                {day}
               </div>
-              {DAYS.map((day) => {
+              {TIME_SLOTS.map((time) => {
                 const dayEntries = getEntriesForDayAndTime(day, time);
                 return (
                   <div key={`${day}-${time}`} className="timetable-cell">
@@ -311,6 +320,25 @@ const Timetable = () => {
                   {editingEntry ? 'Update' : 'Create'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingEntry && (
+        <div className="modal-overlay" onClick={() => setDeletingEntry(null)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Delete Timetable Entry?</h2>
+            <p className="confirm-message">
+              Are you sure you want to delete <strong>{deletingEntry.subject}</strong> ({deletingEntry.day} {deletingEntry.start_time})? This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button onClick={() => setDeletingEntry(null)} className="cancel-button">
+                Cancel
+              </button>
+              <button onClick={confirmDelete} className="delete-button">
+                Delete
+              </button>
             </div>
           </div>
         </div>

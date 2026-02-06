@@ -16,6 +16,7 @@ const TodoList = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -74,10 +75,18 @@ const TodoList = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this todo?')) return;
+    const todoToDelete = todos.find(t => t.id === id);
+    if (todoToDelete) {
+      setDeletingTodo(todoToDelete);
+    }
+  };
+  
+  const confirmDelete = async () => {
+    if (!deletingTodo) return;
     
     try {
-      await deleteTodo(id);
+      await deleteTodo(deletingTodo.id);
+      setDeletingTodo(null);
       loadTodos();
     } catch (error) {
       console.error('Failed to delete todo:', error);
@@ -273,6 +282,29 @@ const TodoList = () => {
                     🗑️
                   </button>
                 </div>
+                
+                {todo.description && (
+                  <p className="todo-description">{todo.description}</p>
+                )}
+
+                {todo.subtasks.length > 0 && (
+                  <div className="subtasks-list">
+                    {todo.subtasks.map((subtask) => (
+                      <div key={subtask.id} className="subtask-item">
+                        <input
+                          type="checkbox"
+                          checked={subtask.completed}
+                          onChange={() => toggleSubtask(todo.id, subtask.id, subtask.completed)}
+                          className="subtask-checkbox"
+                          disabled
+                        />
+                        <span className={`subtask-title ${subtask.completed ? 'completed' : ''}`}>
+                          {subtask.title}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -332,6 +364,25 @@ const TodoList = () => {
                 disabled={!formData.title.trim()}
               >
                 {editingTodo ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingTodo && (
+        <div className="modal-overlay" onClick={() => setDeletingTodo(null)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Delete Todo?</h2>
+            <p className="confirm-message">
+              Are you sure you want to delete <strong>{deletingTodo.title}</strong>? This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button onClick={() => setDeletingTodo(null)} className="cancel-button">
+                Cancel
+              </button>
+              <button onClick={confirmDelete} className="delete-button">
+                Delete
               </button>
             </div>
           </div>

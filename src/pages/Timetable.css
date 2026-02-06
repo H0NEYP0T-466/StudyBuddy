@@ -56,18 +56,36 @@
 
 .timetable-grid {
   display: grid;
-  grid-template-columns: 80px repeat(7, 1fr);
+  grid-template-columns: 100px repeat(13, 1fr);
   gap: 2px;
-  min-width: 1000px;
+  min-width: 1200px;
+}
+
+.timetable-corner-cell {
+  background: var(--bg-alt);
+  border-radius: var(--radius-sm);
 }
 
 .timetable-header-cell {
   background: var(--bg-alt);
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
   font-weight: 600;
   text-align: center;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.timetable-header-cell.time-header {
+  font-size: 0.8rem;
+  padding: var(--spacing-xs);
+}
+
+.timetable-header-cell.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
 }
 
 .timetable-time-cell {
