@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from typing import List, Optional
 import json
+from datetime import datetime
 
+from app.models.database import get_database
 from app.services.rag_service import get_rag_system
 from app.services.gemini_service import gemini_service
 from app.services.longcat_service import longcat_service
@@ -10,6 +12,34 @@ from app.utils.logger import get_logger
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 logger = get_logger("ASSISTANT")
+
+
+@router.get("/messages")
+async def get_chat_messages(limit: int = 15):
+    """Get recent chat messages (returns last N pairs of user/assistant messages)."""
+    logger.info(f"Fetching last {limit} chat messages")
+    db = get_database()
+    
+    try:
+        # Fetch more messages to ensure we get complete conversations
+        # Each conversation typically has 2 messages (user + assistant)
+        messages = await db.chat_messages.find().sort("created_at", -1).limit(limit).to_list(limit)
+        # Reverse to get chronological order
+        messages.reverse()
+        
+        # Convert to expected format
+        result = []
+        for msg in messages:
+            result.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+        
+        logger.success(f"Retrieved {len(result)} messages")
+        return result
+    except Exception as e:
+        logger.error(f"Failed to fetch messages: {str(e)}")
+        return []
 
 
 @router.post("/chat")
@@ -147,6 +177,27 @@ async def chat_with_assistant(
         # Calculate processing time
         processing_time = time.time() - start_time
         
+        # Store messages in database
+        db = get_database()
+        try:
+            # Store user message
+            await db.chat_messages.insert_one({
+                "role": "user",
+                "content": message,
+                "model": model,
+                "created_at": datetime.utcnow()
+            })
+            # Store assistant response
+            await db.chat_messages.insert_one({
+                "role": "assistant",
+                "content": response_text,
+                "model": model,
+                "created_at": datetime.utcnow()
+            })
+            logger.debug("Messages saved to database")
+        except Exception as e:
+            logger.warning(f"Failed to save messages to database: {str(e)}")
+        
         # Final log summary
         logger.info(f"=== Chat Completed Successfully ===")
         logger.info(f"Response length: {len(response_text)} characters")
@@ -155,7 +206,7 @@ async def chat_with_assistant(
         logger.debug(f"Response preview: {response_text[:100]}..." if len(response_text) > 100 else f"Response: {response_text}")
         
         return {
-            "message": response_text,
+            "response": response_text,
             "sources": sources,
             "model": model
         }

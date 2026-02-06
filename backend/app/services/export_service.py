@@ -1,6 +1,8 @@
 import io
+import re
 from datetime import datetime
 from pathlib import Path
+from xml.sax.saxutils import escape
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -59,10 +61,16 @@ class ExportService:
                 elif line.startswith('### '):
                     para = Paragraph(line[4:], styles['Heading3'])
                 else:
-                    # Replace bold markers
-                    line = line.replace('**', '<b>').replace('**', '</b>')
-                    line = line.replace('__', '<b>').replace('__', '</b>')
-                    para = Paragraph(line, styles['BodyText'])
+                    # Convert markdown to HTML safely
+                    # Escape special XML characters first
+                    line_safe = escape(line)
+                    
+                    # Convert **text** to <b>text</b> (greedy match for pairs)
+                    line_safe = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', line_safe)
+                    # Convert __text__ to <b>text</b>
+                    line_safe = re.sub(r'__(.+?)__', r'<b>\1</b>', line_safe)
+                    
+                    para = Paragraph(line_safe, styles['BodyText'])
                 story.append(para)
                 story.append(Spacer(1, 0.1 * inch))
         

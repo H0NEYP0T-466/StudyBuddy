@@ -41,8 +41,8 @@
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
   transition: all 0.2s ease;
 }
 
@@ -62,25 +62,25 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .todo-checkbox-container {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   flex: 1;
 }
 
 .todo-checkbox {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   cursor: pointer;
 }
 
 .todo-title {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   color: var(--text-primary);
 }
 
@@ -112,8 +112,9 @@
 
 .todo-description {
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-md);
-  line-height: 1.6;
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.5;
+  font-size: 0.95rem;
 }
 
 .todo-due-date {
@@ -121,17 +122,17 @@
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--bg-alt);
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .subtasks-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-  padding: var(--spacing-md);
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-sm);
   background: var(--bg-input);
   border-radius: var(--radius-md);
 }

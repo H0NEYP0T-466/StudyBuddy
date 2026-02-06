@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
-import { chatWithAssistant, getFolders, getNotes, exportPen2PDF } from '../services/api';
+import { chatWithAssistant, getChatMessages, getFolders, getNotes, exportPen2PDF } from '../services/api';
 import type { ChatMessage, Folder, Note } from '../types';
 import { AI_MODELS } from '../types';
 import 'katex/dist/katex.min.css';
@@ -11,16 +11,19 @@ import './AIAssistant.css';
 
 // Maximum number of messages to include in conversation history (prevents token overflow)
 const MAX_CONVERSATION_HISTORY = 10;
+// Number of recent messages to load from database on mount
+const CHAT_HISTORY_LIMIT = 15;
 
 const AIAssistant = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [model, setModel] = useState(AI_MODELS[0].value);
   const [useRAG, setUseRAG] = useState(false);
   const [isolateMessage, setIsolateMessage] = useState(false);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [selectedFolders, setSelectedFolders] = useState<number[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [contextNotes, setContextNotes] = useState<Note[]>([]);
   const [sources, setSources] = useState<Note[]>([]);
@@ -35,6 +38,7 @@ const AIAssistant = () => {
 
   useEffect(() => {
     loadFolders();
+    loadChatHistory();
   }, []);
 
   const loadContextNotes = useCallback(async () => {
@@ -64,6 +68,19 @@ const AIAssistant = () => {
       setFolders(response.data);
     } catch (error) {
       console.error('Failed to load folders:', error);
+    }
+  };
+
+  const loadChatHistory = async () => {
+    try {
+      const response = await getChatMessages(CHAT_HISTORY_LIMIT);
+      setMessages(response.data);
+      setLoadingHistory(false);
+      // Scroll to bottom after loading
+      setTimeout(() => scrollToBottom(), 100);
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      setLoadingHistory(false);
     }
   };
 
@@ -122,7 +139,7 @@ const AIAssistant = () => {
     }
   };
 
-  const toggleFolder = (folderId: number) => {
+  const toggleFolder = (folderId: string) => {
     setSelectedFolders((prev) =>
       prev.includes(folderId)
         ? prev.filter((id) => id !== folderId)
@@ -233,7 +250,11 @@ const AIAssistant = () => {
         {/* Main Chat Area */}
         <div className="chat-main">
           <div className="messages-container-new">
-            {messages.length === 0 ? (
+            {loadingHistory ? (
+              <div className="empty-state">
+                <div className="loading-spinner">Loading chat history...</div>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">🤖</div>
                 <h2>Isabella AI Assistant</h2>

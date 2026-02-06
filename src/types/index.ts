@@ -1,5 +1,5 @@
 export interface Folder {
-  id: number;
+  id: string;
   name: string;
   color: string;
   created_at: string;
@@ -7,13 +7,14 @@ export interface Folder {
 }
 
 export interface Note {
-  id: number;
+  id: string;
   title: string;
   content: string;
-  folder_id: number;
+  folder_id?: string;
   created_at: string;
   updated_at: string;
   folder?: Folder;
+  model_used?: string;
 }
 
 export interface TimetableEntry {
@@ -59,7 +60,7 @@ export interface AssistantChatRequest {
   conversation_history: ChatMessage[];
   model?: string;
   use_rag?: boolean;
-  folder_ids?: number[];
+  folder_ids?: string[];
   isolate_message?: boolean;
 }
 
