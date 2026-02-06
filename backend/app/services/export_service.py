@@ -1,7 +1,8 @@
 import io
 import re
 import logging
-from weasyprint import HTML, CSS
+import asyncio
+from playwright.async_api import async_playwright
 from markdown2 import markdown
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -25,14 +26,10 @@ def create_html_template(title: str, content_html: str, watermark: bool = True) 
     To use local fonts, install Noto fonts on the system or bundle them.
     """
     
-    watermark_style = """
-        @page {
-            @bottom-right {
-                content: '~honeypot';
-                font-size: 10pt;
-                color: #999;
-            }
-        }
+    watermark_html = """
+        <div style="position: fixed; bottom: 20px; right: 20px; font-size: 10pt; color: #999; z-index: 9999;">
+            ~honeypot
+        </div>
     """ if watermark else ""
     
     html_template = f"""
@@ -148,13 +145,12 @@ def create_html_template(title: str, content_html: str, watermark: bool = True) 
             .emoji {{
                 font-family: 'Noto Emoji', sans-serif;
             }}
-            
-            {watermark_style}
         </style>
     </head>
     <body>
         <h1>{title}</h1>
         {content_html}
+        {watermark_html}
     </body>
     </html>
     """
@@ -219,8 +215,8 @@ class ExportService:
         return output
 
     @staticmethod
-    def export_to_pdf(content: str, title: str, watermark: bool = True) -> io.BytesIO:
-        """Export content as PDF with emoji, markdown, and LaTeX support."""
+    async def export_to_pdf(content: str, title: str, watermark: bool = True) -> io.BytesIO:
+        """Export content as PDF with emoji, markdown, and LaTeX support using Playwright."""
         try:
             # Convert markdown content to HTML
             content_html = markdown_to_html(content)
@@ -228,12 +224,34 @@ class ExportService:
             # Create full HTML document
             html_doc = create_html_template(title, content_html, watermark)
             
-            # Generate PDF using WeasyPrint
+            # Generate PDF using Playwright (Chromium)
             output = io.BytesIO()
-            HTML(string=html_doc).write_pdf(output)
+            
+            async with async_playwright() as p:
+                browser = await p.chromium.launch()
+                page = await browser.new_page()
+                
+                # Set content and wait for fonts to load
+                await page.set_content(html_doc, wait_until='networkidle')
+                
+                # Generate PDF with proper settings
+                pdf_bytes = await page.pdf(
+                    format='A4',
+                    print_background=True,
+                    margin={
+                        'top': '20px',
+                        'right': '20px',
+                        'bottom': '20px',
+                        'left': '20px'
+                    }
+                )
+                
+                await browser.close()
+                
+                output.write(pdf_bytes)
             
             output.seek(0)
-            logger.info(f"PDF generated successfully for '{title}'")
+            logger.info(f"PDF generated successfully for '{title}' using Playwright")
             return output
             
         except Exception as e:

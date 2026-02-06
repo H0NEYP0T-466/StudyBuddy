@@ -99,7 +99,7 @@ async def export_document(
     try:
         if format == "pdf":
             logger.debug("Exporting to PDF format")
-            output = export_service.export_to_pdf(content, title, add_watermark)
+            output = await export_service.export_to_pdf(content, title, add_watermark)
             media_type = "application/pdf"
             filename = f"{title}.pdf"
         elif format == "docx":
