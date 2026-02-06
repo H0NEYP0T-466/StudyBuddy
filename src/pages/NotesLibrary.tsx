@@ -14,6 +14,7 @@ const NotesLibrary = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
   const [formData, setFormData] = useState({ name: '', color: PRESET_COLORS[0] });
   const navigate = useNavigate();
 
@@ -58,11 +59,12 @@ const NotesLibrary = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this folder and all its notes?')) return;
+  const handleDelete = async () => {
+    if (!deletingFolder) return;
     
     try {
-      await deleteFolder(id);
+      await deleteFolder(deletingFolder.id);
+      setDeletingFolder(null);
       loadFolders();
     } catch (error) {
       console.error('Failed to delete folder:', error);
@@ -127,7 +129,7 @@ const NotesLibrary = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDelete(folder.id);
+                    setDeletingFolder(folder);
                   }}
                   className="folder-action-button delete"
                 >
@@ -158,7 +160,7 @@ const NotesLibrary = () => {
               />
             </div>
             <div className="form-group">
-              <label>Color</label>
+              <label>Folder Color</label>
               <div className="color-picker">
                 {PRESET_COLORS.map((color) => (
                   <button
@@ -166,6 +168,7 @@ const NotesLibrary = () => {
                     className={`color-option ${formData.color === color ? 'selected' : ''}`}
                     style={{ background: color }}
                     onClick={() => setFormData({ ...formData, color })}
+                    title={color}
                   />
                 ))}
               </div>
@@ -187,6 +190,31 @@ const NotesLibrary = () => {
                 disabled={!formData.name.trim()}
               >
                 {editingFolder ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingFolder && (
+        <div className="modal-overlay" onClick={() => setDeletingFolder(null)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Delete Folder?</h2>
+            <p className="confirm-message">
+              Are you sure you want to delete <strong>{deletingFolder.name}</strong> and all its notes? This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button
+                onClick={() => setDeletingFolder(null)}
+                className="cancel-button"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="delete-button"
+              >
+                Delete
               </button>
             </div>
           </div>
