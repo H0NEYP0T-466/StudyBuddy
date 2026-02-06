@@ -1,12 +1,16 @@
 import io
 import re
-import sys
-import asyncio
 import logging
-from playwright.async_api import async_playwright
 from markdown2 import markdown
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Preformatted
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
 
 # ==========================
 # Configuration
@@ -16,216 +20,244 @@ WATERMARK_TEXT = "~honeypot"
 logger = logging.getLogger(__name__)
 
 # ==========================
-# HTML Template for PDF with MathJax support
+# ReportLab PDF Utilities
 # ==========================
-def create_html_template(title: str, content_html: str) -> str:
-    """
-    Create HTML template with CSS styling.
+
+class WatermarkCanvas(canvas.Canvas):
+    """Custom canvas class to add watermark to PDF pages."""
+    def __init__(self, *args, **kwargs):
+        self.add_watermark = kwargs.pop('add_watermark', False)
+        canvas.Canvas.__init__(self, *args, **kwargs)
     
-    Note: Uses Google Fonts CDN for Noto Sans and Noto Emoji fonts.
-    For offline environments, fonts will fall back to system defaults.
-    To use local fonts, install Noto fonts on the system or bundle them.
-    Watermark is handled via Playwright PDF options, not in HTML.
-    """
-    
-    html_template = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Emoji&display=swap');
-            
-            body {{
-                font-family: 'Noto Sans', 'Noto Emoji', sans-serif;
-                line-height: 1.6;
-                color: #333;
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-            }}
-            
-            h1 {{
-                font-size: 28pt;
-                font-weight: 700;
-                text-align: center;
-                margin-bottom: 30px;
-                color: #1a1a1a;
-            }}
-            
-            h2 {{
-                font-size: 20pt;
-                font-weight: 700;
-                margin-top: 20px;
-                margin-bottom: 10px;
-                color: #2a2a2a;
-                border-bottom: 2px solid #e0e0e0;
-                padding-bottom: 5px;
-            }}
-            
-            h3 {{
-                font-size: 16pt;
-                font-weight: 700;
-                margin-top: 15px;
-                margin-bottom: 8px;
-                color: #3a3a3a;
-            }}
-            
-            p {{
-                margin: 10px 0;
-                text-align: justify;
-            }}
-            
-            code {{
-                background-color: #f4f4f4;
-                padding: 2px 6px;
-                border-radius: 3px;
-                font-family: 'Courier New', monospace;
-                font-size: 9pt;
-            }}
-            
-            pre {{
-                background-color: #f4f4f4;
-                padding: 15px;
-                border-radius: 5px;
-                overflow-x: auto;
-                border-left: 4px solid #4CAF50;
-            }}
-            
-            pre code {{
-                background-color: transparent;
-                padding: 0;
-            }}
-            
-            blockquote {{
-                border-left: 4px solid #ccc;
-                margin-left: 0;
-                padding-left: 20px;
-                color: #666;
-                font-style: italic;
-            }}
-            
-            ul, ol {{
-                margin: 10px 0;
-                padding-left: 30px;
-            }}
-            
-            li {{
-                margin: 5px 0;
-            }}
-            
-            table {{
-                border-collapse: collapse;
-                width: 100%;
-                margin: 15px 0;
-            }}
-            
-            th, td {{
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align: left;
-            }}
-            
-            th {{
-                background-color: #f4f4f4;
-                font-weight: 700;
-            }}
-            
-            /* LaTeX styling */
-            .math {{
-                font-family: 'STIX Two Math', serif;
-                font-style: italic;
-            }}
-            
-            /* Emoji support */
-            .emoji {{
-                font-family: 'Noto Emoji', sans-serif;
-            }}
-        </style>
-    </head>
-    <body>
-        <h1>{title}</h1>
-        {content_html}
-    </body>
-    </html>
-    """
-    
-    return html_template
+    def showPage(self):
+        """Override to add watermark before showing page."""
+        if self.add_watermark:
+            self.saveState()
+            self.setFont('Helvetica', 10)
+            self.setFillColor(colors.lightgrey)
+            # Add watermark at bottom right
+            self.drawRightString(
+                A4[0] - 20,
+                20,
+                WATERMARK_TEXT
+            )
+            self.restoreState()
+        canvas.Canvas.showPage(self)
 
 
-def process_latex(text: str) -> str:
-    """Convert LaTeX expressions to HTML with basic rendering."""
-    # Handle inline LaTeX: $...$
-    text = re.sub(
-        r'\$([^\$]+)\$',
-        r'<span class="math">\1</span>',
-        text
-    )
+def create_styles():
+    """Create custom paragraph styles for PDF."""
+    styles = getSampleStyleSheet()
     
-    # Handle display LaTeX: $$...$$
-    text = re.sub(
-        r'\$\$([^\$]+)\$\$',
-        r'<div class="math" style="text-align: center; margin: 15px 0;">\1</div>',
-        text
-    )
+    # Title style
+    styles.add(ParagraphStyle(
+        name='CustomTitle',
+        parent=styles['Title'],
+        fontSize=28,
+        textColor=colors.HexColor('#1a1a1a'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    ))
+    
+    # Heading 2 style
+    styles.add(ParagraphStyle(
+        name='CustomHeading2',
+        parent=styles['Heading2'],
+        fontSize=20,
+        textColor=colors.HexColor('#2a2a2a'),
+        spaceAfter=10,
+        spaceBefore=20,
+        fontName='Helvetica-Bold',
+        borderWidth=0,
+        borderPadding=5,
+        borderColor=colors.HexColor('#e0e0e0'),
+        borderRadius=0,
+    ))
+    
+    # Heading 3 style
+    styles.add(ParagraphStyle(
+        name='CustomHeading3',
+        parent=styles['Heading3'],
+        fontSize=16,
+        textColor=colors.HexColor('#3a3a3a'),
+        spaceAfter=8,
+        spaceBefore=15,
+        fontName='Helvetica-Bold'
+    ))
+    
+    # Body text style
+    styles.add(ParagraphStyle(
+        name='CustomBody',
+        parent=styles['BodyText'],
+        fontSize=11,
+        textColor=colors.HexColor('#333333'),
+        alignment=TA_JUSTIFY,
+        spaceAfter=10,
+        fontName='Helvetica'
+    ))
+    
+    # Code style
+    styles.add(ParagraphStyle(
+        name='CustomCode',
+        parent=styles['Code'],
+        fontSize=9,
+        fontName='Courier',
+        textColor=colors.black,
+        backColor=colors.HexColor('#f4f4f4'),
+        leftIndent=10,
+        rightIndent=10,
+        spaceAfter=10,
+        spaceBefore=10
+    ))
+    
+    return styles
+
+
+def parse_markdown_to_reportlab(content: str, styles) -> list:
+    """
+    Parse markdown content and convert to ReportLab flowables.
+    Supports headings, paragraphs, bold, italic, code blocks, and lists.
+    """
+    elements = []
+    lines = content.split('\n')
+    i = 0
+    in_code_block = False
+    code_lines = []
+    in_list = False
+    list_items = []
+    
+    while i < len(lines):
+        line = lines[i]
+        
+        # Handle code blocks
+        if line.strip().startswith('```'):
+            if in_code_block:
+                # End of code block
+                code_text = '\n'.join(code_lines)
+                elements.append(Preformatted(code_text, styles['CustomCode']))
+                elements.append(Spacer(1, 0.2*inch))
+                code_lines = []
+                in_code_block = False
+            else:
+                # Start of code block
+                in_code_block = True
+            i += 1
+            continue
+        
+        if in_code_block:
+            code_lines.append(line)
+            i += 1
+            continue
+        
+        # Handle headings
+        if line.startswith('# '):
+            if in_list:
+                elements.extend(list_items)
+                list_items = []
+                in_list = False
+            text = line[2:].strip()
+            elements.append(Paragraph(text, styles['CustomTitle']))
+            elements.append(Spacer(1, 0.3*inch))
+        elif line.startswith('## '):
+            if in_list:
+                elements.extend(list_items)
+                list_items = []
+                in_list = False
+            text = line[3:].strip()
+            elements.append(Paragraph(text, styles['CustomHeading2']))
+            elements.append(Spacer(1, 0.2*inch))
+        elif line.startswith('### '):
+            if in_list:
+                elements.extend(list_items)
+                list_items = []
+                in_list = False
+            text = line[4:].strip()
+            elements.append(Paragraph(text, styles['CustomHeading3']))
+            elements.append(Spacer(1, 0.15*inch))
+        # Handle lists
+        elif line.strip().startswith('- ') or line.strip().startswith('* '):
+            text = line.strip()[2:].strip()
+            text = format_inline_markdown(text)
+            list_items.append(Paragraph(f"• {text}", styles['CustomBody']))
+            in_list = True
+        elif re.match(r'^\d+\.\s', line.strip()):
+            # Numbered list (supports any number)
+            match = re.match(r'^(\d+)\.\s+(.+)', line.strip())
+            if match:
+                num, text = match.groups()
+                text = format_inline_markdown(text)
+                list_items.append(Paragraph(f"{num}. {text}", styles['CustomBody']))
+                in_list = True
+        # Handle horizontal rules
+        elif line.strip() in ['---', '***', '___']:
+            if in_list:
+                elements.extend(list_items)
+                list_items = []
+                in_list = False
+            elements.append(Spacer(1, 0.2*inch))
+        # Handle empty lines
+        elif not line.strip():
+            if in_list:
+                elements.extend(list_items)
+                elements.append(Spacer(1, 0.1*inch))
+                list_items = []
+                in_list = False
+            elif elements:  # Don't add spacer at the beginning
+                elements.append(Spacer(1, 0.1*inch))
+        # Handle regular paragraphs
+        else:
+            if in_list:
+                elements.extend(list_items)
+                list_items = []
+                in_list = False
+            text = format_inline_markdown(line)
+            if text.strip():
+                elements.append(Paragraph(text, styles['CustomBody']))
+        
+        i += 1
+    
+    # Add any remaining list items
+    if in_list:
+        elements.extend(list_items)
+    
+    return elements
+
+
+def format_inline_markdown(text: str) -> str:
+    """
+    Format inline markdown elements like bold, italic, code, and LaTeX.
+    Converts to ReportLab XML markup.
+    
+    Note: ReportLab's Paragraph class handles XML-like markup, so we don't
+    escape angle brackets for bold/italic tags that we intentionally add.
+    """
+    # First, escape only ampersands in user content (< and > are OK for our XML tags)
+    text = text.replace('&', '&amp;')
+    
+    # Handle LaTeX inline math $...$ (convert to italic)
+    # Use non-greedy match and handle single $ expressions
+    text = re.sub(r'\$([^$]+?)\$', r'<i>\1</i>', text)
+    
+    # Handle bold + italic first (before individual patterns)
+    # ***text*** or ___text___
+    text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
+    text = re.sub(r'___(.+?)___', r'<b><i>\1</i></b>', text)
+    
+    # Handle bold **text** (use ** for bold, not __ to avoid conflicts with Python identifiers)
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    
+    # Handle italic *text* (be careful not to match mid-word asterisks)
+    text = re.sub(r'(?<!\w)\*([^*]+?)\*(?!\w)', r'<i>\1</i>', text)
+    
+    # Handle italic _text_ (be careful with underscores in identifiers like __init__)
+    # Only match single underscores that are not adjacent to other underscores
+    text = re.sub(r'(?<![_a-zA-Z0-9])_([^_]+?)_(?![_a-zA-Z0-9])', r'<i>\1</i>', text)
+    
+    # Handle inline code `code`
+    text = re.sub(r'`([^`]+)`', r'<font name="Courier" color="#333333">\1</font>', text)
     
     return text
-
-
-def markdown_to_html(content: str) -> str:
-    """Convert markdown to HTML with LaTeX support."""
-    # Process LaTeX first (before markdown conversion)
-    content = process_latex(content)
-    
-    # Convert markdown to HTML
-    html_content = markdown(
-        content,
-        extras=[
-            'fenced-code-blocks',
-            'tables',
-            'break-on-newline',
-            'code-friendly',
-            'cuddled-lists',
-            'header-ids',
-            'strike',
-            'task_list'
-        ]
-    )
-    
-    return html_content
-
-
-async def _generate_pdf_async(html_doc: str, watermark: bool) -> bytes:
-    """Helper function to generate PDF with Playwright."""
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        
-        # Set content and wait for fonts to load
-        await page.set_content(html_doc, wait_until='load')
-        
-        # Wait for fonts to be ready
-        await page.evaluate('document.fonts.ready')
-        
-        # Prepare footer template for watermark (uses WATERMARK_TEXT constant)
-        footer_template = f'<div style="font-size: 10pt; color: #999; text-align: right; width: 100%; padding-right: 20px;">{WATERMARK_TEXT}</div>' if watermark else ''
-        
-        # Generate PDF with proper settings
-        pdf_bytes = await page.pdf(
-            format='A4',
-            print_background=True,
-            margin={
-                'top': '20px',
-                'right': '20px',
-                'bottom': '40px' if watermark else '20px',
-                'left': '20px'
-            },
-            display_header_footer=watermark,
-            footer_template=footer_template
-        )
-        
-        await browser.close()
-        return pdf_bytes
 
 
 # ==========================
@@ -244,44 +276,52 @@ class ExportService:
 
     @staticmethod
     async def export_to_pdf(content: str, title: str, watermark: bool = True) -> io.BytesIO:
-        """Export content as PDF with emoji, markdown, and LaTeX support using Playwright."""
+        """
+        Export content as PDF with markdown and basic LaTeX support using ReportLab.
+        
+        Note: ReportLab has limited emoji support. Complex emojis may not render correctly.
+        """
         try:
-            # Convert markdown content to HTML
-            content_html = markdown_to_html(content)
-            
-            # Create full HTML document (without watermark in HTML)
-            html_doc = create_html_template(title, content_html)
-            
-            # Generate PDF using Playwright (Chromium)
             output = io.BytesIO()
             
-            # Windows-specific fix: Run Playwright in a thread with correct event loop policy
-            if sys.platform == "win32":
-                import concurrent.futures
-                
-                def run_playwright_in_thread():
-                    """Run Playwright in a separate thread with WindowsSelectorEventLoopPolicy."""
-                    # Create new event loop with correct policy for Windows
-                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    
-                    try:
-                        return new_loop.run_until_complete(_generate_pdf_async(html_doc, watermark))
-                    finally:
-                        new_loop.close()
-                
-                # Run in thread pool to avoid event loop conflicts
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(run_playwright_in_thread)
-                    pdf_bytes = future.result()
-            else:
-                # On non-Windows platforms, use direct async approach
-                pdf_bytes = await _generate_pdf_async(html_doc, watermark)
+            # Create custom canvas with watermark support
+            doc = SimpleDocTemplate(
+                output,
+                pagesize=A4,
+                rightMargin=20,
+                leftMargin=20,
+                topMargin=20,
+                bottomMargin=40 if watermark else 20,
+                title=title
+            )
             
-            output.write(pdf_bytes)
+            # Get custom styles
+            styles = create_styles()
+            
+            # Build story (content elements)
+            story = []
+            
+            # Add title
+            story.append(Paragraph(title, styles['CustomTitle']))
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Parse markdown content and add to story
+            content_elements = parse_markdown_to_reportlab(content, styles)
+            story.extend(content_elements)
+            
+            # Build PDF with custom canvas for watermark
+            if watermark:
+                doc.build(
+                    story,
+                    canvasmaker=lambda *args, **kwargs: WatermarkCanvas(
+                        *args, add_watermark=True, **kwargs
+                    )
+                )
+            else:
+                doc.build(story)
+            
             output.seek(0)
-            logger.info(f"PDF generated successfully for '{title}' using Playwright")
+            logger.info(f"PDF generated successfully for '{title}' using ReportLab")
             return output
             
         except Exception as e:
