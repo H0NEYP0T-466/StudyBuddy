@@ -230,8 +230,8 @@ class ExportService:
                 # Wait for fonts to be ready
                 await page.evaluate('document.fonts.ready')
                 
-                # Prepare footer template for watermark
-                footer_template = '<div style="font-size: 10pt; color: #999; text-align: right; width: 100%; padding-right: 20px;">~honeypot</div>' if watermark else ''
+                # Prepare footer template for watermark (uses WATERMARK_TEXT constant)
+                footer_template = f'<div style="font-size: 10pt; color: #999; text-align: right; width: 100%; padding-right: 20px;">{WATERMARK_TEXT}</div>' if watermark else ''
                 
                 # Generate PDF with proper settings
                 pdf_bytes = await page.pdf(
@@ -244,7 +244,7 @@ class ExportService:
                         'left': '20px'
                     },
                     display_header_footer=watermark,
-                    footer_template=footer_template if watermark else None
+                    footer_template=footer_template
                 )
                 
                 await browser.close()
