@@ -43,7 +43,13 @@ async def extract_documents(
             
             if ext in ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.ppt', '.pptx']:
                 logger.info(f"Processing {filename} with Gemini (visual extraction)...")
-                prompt = "Extract all text content from this document. Return in clean markdown."
+                prompt = """You are a handwriting-to-digital text converter for an app called StudyBuddy.
+                            Your task:
+                            - Extract readable text from the provided input.
+                            - Detect possible headings (H1/H2/H3) and preserve formatting.
+                            - Return clean, structured text only, no explanations.
+                            if thier is a spelling mistake dont fix it your task in simply an ocr tool simply extract the text as it is without any modification.
+                             Return in clean markdown."""
                 text = await gemini_service.generate_text(
                     prompt=prompt,
                     model_name=model,
