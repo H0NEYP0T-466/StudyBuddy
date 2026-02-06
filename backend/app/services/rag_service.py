@@ -29,20 +29,89 @@ class RAGSystem:
         
     async def initialize(self):
         """Initialize RAG system - load existing index or create new one."""
-        # Check for new files
-        new_files = await self._scan_for_new_files()
-        
-        if new_files:
-            print(f"Found {len(new_files)} new files to index")
-            await self._add_documents(new_files)
-        elif self.index_path.exists() and self.metadata_path.exists():
+        # Load existing index first if it exists
+        if self.index_path.exists() and self.metadata_path.exists():
             print("Loading existing FAISS index...")
             self._load_index()
         else:
             print("No existing index found, creating new one")
             self.index = faiss.IndexFlatL2(self.dimension)
+        
+        # Check for history.txt updates specifically
+        history_file = self.data_dir / "history.txt"
+        await self._check_and_reindex_history(history_file)
+        
+        # Check for other new files
+        new_files = await self._scan_for_new_files()
+        
+        if new_files:
+            print(f"Found {len(new_files)} new files to index")
+            await self._add_documents(new_files)
             
         print(f"RAG system initialized with {len(self.documents)} documents")
+    
+    async def _check_and_reindex_history(self, history_file: Path):
+        """Check if history.txt has been updated and reindex only that file."""
+        if not history_file.exists():
+            print("No history.txt file found, skipping history reindexing")
+            return
+        
+        # Get current modification time
+        current_mtime = os.path.getmtime(history_file)
+        
+        # Check if history.txt is in the index
+        history_docs = [doc for doc in self.documents if doc['filepath'] == str(history_file)]
+        
+        if history_docs:
+            # Get the timestamp of the indexed version
+            indexed_timestamp = history_docs[0].get('file_mtime', 0)
+            
+            if current_mtime > indexed_timestamp:
+                print(f"history.txt has been updated, reindexing...")
+                # Remove old history.txt chunks from index
+                await self._remove_document_from_index(str(history_file))
+                # Add updated version
+                await self._add_documents([history_file], file_mtime=current_mtime)
+            else:
+                print("history.txt is up to date in the index")
+        else:
+            # History file not in index, add it
+            print("Adding history.txt to index for the first time")
+            await self._add_documents([history_file], file_mtime=current_mtime)
+    
+    async def _remove_document_from_index(self, filepath: str):
+        """Remove all chunks of a document from the index."""
+        # Find indices of chunks to remove
+        indices_to_keep = []
+        docs_to_keep = []
+        
+        for i, doc in enumerate(self.documents):
+            if doc['filepath'] != filepath:
+                indices_to_keep.append(i)
+                docs_to_keep.append(doc)
+        
+        if len(indices_to_keep) == len(self.documents):
+            print(f"No chunks found for {filepath}")
+            return
+        
+        # Rebuild index with remaining documents
+        if self.index and self.index.ntotal > 0:
+            # Extract embeddings for documents to keep
+            if indices_to_keep:
+                print(f"Removing {len(self.documents) - len(indices_to_keep)} chunks from index")
+                # We need to regenerate embeddings for kept documents
+                # This is a limitation of FAISS - we can't remove individual vectors
+                chunks_to_keep = [doc['chunk'] for doc in docs_to_keep]
+                if chunks_to_keep:
+                    embeddings = self.model.encode(chunks_to_keep)
+                    self.index = faiss.IndexFlatL2(self.dimension)
+                    self.index.add(np.array(embeddings).astype('float32'))
+            else:
+                # No documents to keep, reset index
+                self.index = faiss.IndexFlatL2(self.dimension)
+        
+        self.documents = docs_to_keep
+        self._save_index()
     
     async def _scan_for_new_files(self) -> List[Path]:
         """Scan data directory for new files."""
@@ -52,13 +121,14 @@ class RAGSystem:
         for ext in supported_extensions:
             all_files.extend(self.data_dir.glob(f"*{ext}"))
         
-        # Filter out already indexed files
+        # Filter out already indexed files and history.txt (handled separately)
         indexed_files = {doc['filepath'] for doc in self.documents}
-        new_files = [f for f in all_files if str(f) not in indexed_files]
+        history_file = str(self.data_dir / "history.txt")
+        new_files = [f for f in all_files if str(f) not in indexed_files and str(f) != history_file]
         
         return new_files
     
-    async def _add_documents(self, files: List[Path]):
+    async def _add_documents(self, files: List[Path], file_mtime: float = None):
         """Process and add documents to FAISS index."""
         for file_path in files:
             try:
@@ -84,6 +154,10 @@ class RAGSystem:
                 
                 self.index.add(np.array(embeddings).astype('float32'))
                 
+                # Get file modification time if not provided
+                if file_mtime is None:
+                    file_mtime = os.path.getmtime(file_path) if file_path.exists() else 0
+                
                 # Store metadata
                 for i, chunk in enumerate(chunks):
                     self.documents.append({
@@ -91,7 +165,8 @@ class RAGSystem:
                         'filename': file_path.name,
                         'chunk': chunk,
                         'chunk_index': i,
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'file_mtime': file_mtime
                     })
                 
                 print(f"Added {len(chunks)} chunks from {file_path.name}")
