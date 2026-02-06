@@ -11,6 +11,8 @@ import './AIAssistant.css';
 
 // Maximum number of messages to include in conversation history (prevents token overflow)
 const MAX_CONVERSATION_HISTORY = 10;
+// Number of recent messages to load from database on mount
+const CHAT_HISTORY_LIMIT = 15;
 
 const AIAssistant = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -71,7 +73,7 @@ const AIAssistant = () => {
 
   const loadChatHistory = async () => {
     try {
-      const response = await getChatMessages(15);
+      const response = await getChatMessages(CHAT_HISTORY_LIMIT);
       setMessages(response.data);
       setLoadingHistory(false);
       // Scroll to bottom after loading

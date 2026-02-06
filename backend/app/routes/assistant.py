@@ -16,12 +16,14 @@ logger = get_logger("ASSISTANT")
 
 @router.get("/messages")
 async def get_chat_messages(limit: int = 15):
-    """Get recent chat messages."""
+    """Get recent chat messages (returns last N pairs of user/assistant messages)."""
     logger.info(f"Fetching last {limit} chat messages")
     db = get_database()
     
     try:
-        messages = await db.chat_messages.find().sort("created_at", -1).limit(limit * 2).to_list(limit * 2)
+        # Fetch more messages to ensure we get complete conversations
+        # Each conversation typically has 2 messages (user + assistant)
+        messages = await db.chat_messages.find().sort("created_at", -1).limit(limit).to_list(limit)
         # Reverse to get chronological order
         messages.reverse()
         

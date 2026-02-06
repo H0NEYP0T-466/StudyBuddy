@@ -296,7 +296,6 @@ const TodoList = () => {
                           checked={subtask.completed}
                           onChange={() => toggleSubtask(todo.id, subtask.id, subtask.completed)}
                           className="subtask-checkbox"
-                          disabled
                         />
                         <span className={`subtask-title ${subtask.completed ? 'completed' : ''}`}>
                           {subtask.title}

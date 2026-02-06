@@ -1,6 +1,8 @@
 import io
+import re
 from datetime import datetime
 from pathlib import Path
+from xml.sax.saxutils import escape
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -60,9 +62,6 @@ class ExportService:
                     para = Paragraph(line[4:], styles['Heading3'])
                 else:
                     # Convert markdown to HTML safely
-                    import re
-                    from xml.sax.saxutils import escape
-                    
                     # Escape special XML characters first
                     line_safe = escape(line)
                     
