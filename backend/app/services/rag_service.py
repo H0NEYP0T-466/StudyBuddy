@@ -69,8 +69,8 @@ class RAGSystem:
             print("No history.txt file found, skipping history reindexing")
             return
         
-        # Get current modification time
-        current_mtime = os.path.getmtime(history_file)
+        # Get current modification time using Path for consistency
+        current_mtime = history_file.stat().st_mtime
         
         # Check if history.txt is in the index
         history_docs = [doc for doc in self.documents if doc['filepath'] == str(history_file)]
@@ -93,7 +93,14 @@ class RAGSystem:
             await self._add_documents([history_file], file_mtime=current_mtime)
     
     async def _remove_document_from_index(self, filepath: str):
-        """Remove all chunks of a document from the index."""
+        """
+        Remove all chunks of a document from the index.
+        
+        Performance Note: FAISS IndexFlatL2 doesn't support removing individual vectors,
+        so we must rebuild the entire index. For large indexes (>10k chunks), this could
+        take several seconds. This is acceptable for history.txt updates but may need
+        optimization for bulk operations (e.g., use IndexIDMap for deletion support).
+        """
         # Find indices of chunks to remove
         indices_to_keep = []
         docs_to_keep = []
@@ -167,9 +174,9 @@ class RAGSystem:
                 
                 self.index.add(np.array(embeddings).astype('float32'))
                 
-                # Get file modification time if not provided
+                # Get file modification time if not provided (using Path for consistency)
                 if file_mtime is None:
-                    file_mtime = os.path.getmtime(file_path) if file_path.exists() else 0
+                    file_mtime = file_path.stat().st_mtime if file_path.exists() else 0
                 
                 # Store metadata
                 for i, chunk in enumerate(chunks):

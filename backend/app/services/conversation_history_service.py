@@ -40,22 +40,34 @@ class ConversationHistoryService:
         return self._check_file_modified()
     
     def save_conversation(self, user_message: str, assistant_response: str, model: str):
-        """Save a conversation exchange to the history file."""
+        """
+        Save a conversation exchange to the history file.
+        
+        Content is sanitized to ensure file format integrity while preserving
+        the original message content including emojis and special characters.
+        """
         try:
             timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
             
+            # Sanitize inputs: preserve content but ensure no corruption of file format
+            # Remove or escape any separator patterns that could break parsing
+            separator = '=' * 80
+            user_message_safe = user_message.replace(separator, '-' * 80)
+            assistant_response_safe = assistant_response.replace(separator, '-' * 80)
+            model_safe = model.replace('\n', ' ').replace('\r', ' ')
+            
             # Format the conversation entry
             entry = f"""
-{'='*80}
+{separator}
 Timestamp: {timestamp}
-Model: {model}
+Model: {model_safe}
 
 [User]:
-{user_message}
+{user_message_safe}
 
 [Isabella]:
-{assistant_response}
-{'='*80}
+{assistant_response_safe}
+{separator}
 
 """
             

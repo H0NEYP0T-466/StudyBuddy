@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 # HTML Template for PDF with MathJax support
 # ==========================
 def create_html_template(title: str, content_html: str, watermark: bool = True) -> str:
-    """Create HTML template with CSS styling and optional watermark."""
+    """
+    Create HTML template with CSS styling and optional watermark.
+    
+    Note: Uses Google Fonts CDN for Noto Sans and Noto Emoji fonts.
+    For offline environments, fonts will fall back to system defaults.
+    To use local fonts, install Noto fonts on the system or bundle them.
+    """
     
     watermark_style = """
         @page {
