@@ -14,6 +14,9 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import markdown
 
+# Configuration
+WATERMARK_TEXT = "~honeypot"
+
 
 class WatermarkCanvas(canvas.Canvas):
     """Custom canvas to add watermark on every page."""
@@ -41,7 +44,7 @@ class WatermarkCanvas(canvas.Canvas):
         self.setFont('Helvetica', 10)
         self.setFillColorRGB(0.6, 0.6, 0.6)  # Gray color
         # Position at bottom right (with some padding)
-        self.drawRightString(letter[0] - 0.5*inch, 0.5*inch, "~honeypot")
+        self.drawRightString(letter[0] - 0.5*inch, 0.5*inch, WATERMARK_TEXT)
         self.restoreState()
 
 

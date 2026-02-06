@@ -9,6 +9,7 @@ import type {
   AssistantChatResponse,
   Pen2PDFExtractResponse,
   NoteGenerateResponse,
+  ChatMessage,
 } from '../types';
 
 const API_BASE_URL = 'http://localhost:8003';
@@ -101,7 +102,7 @@ export const chatWithAssistant = (data: AssistantChatRequest) => {
 };
 
 export const getChatMessages = (limit: number = 15) => 
-  api.get<import('../types').ChatMessage[]>('/api/assistant/messages', { params: { limit } });
+  api.get<ChatMessage[]>('/api/assistant/messages', { params: { limit } });
 
 // Pen2PDF
 export const extractPen2PDF = (formData: FormData) => 
