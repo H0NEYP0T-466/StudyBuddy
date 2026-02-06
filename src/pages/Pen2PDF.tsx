@@ -17,7 +17,7 @@ const Pen2PDF = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveModalStep, setSaveModalStep] = useState<'folder' | 'title'>('folder');
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [selectedFolderId, setSelectedFolderId] = useState<number | undefined>();
+  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [noteTitle, setNoteTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,7 +182,7 @@ const Pen2PDF = () => {
     setNoteTitle('');
   };
 
-  const handleFolderSelect = (folderId?: number) => {
+  const handleFolderSelect = (folderId?: string) => {
     setSelectedFolderId(folderId);
     setSaveModalStep('title');
   };

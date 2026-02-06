@@ -101,7 +101,7 @@ export const chatWithAssistant = (data: AssistantChatRequest) => {
 };
 
 export const getChatMessages = (limit: number = 15) => 
-  api.get<ChatMessage[]>('/api/assistant/messages', { params: { limit } });
+  api.get<import('../types').ChatMessage[]>('/api/assistant/messages', { params: { limit } });
 
 // Pen2PDF
 export const extractPen2PDF = (formData: FormData) => 
