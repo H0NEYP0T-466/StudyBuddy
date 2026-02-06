@@ -9,6 +9,9 @@ import { AI_MODELS } from '../types';
 import 'katex/dist/katex.min.css';
 import './AIAssistant.css';
 
+// Maximum number of messages to include in conversation history (prevents token overflow)
+const MAX_CONVERSATION_HISTORY = 10;
+
 const AIAssistant = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -26,6 +29,7 @@ const AIAssistant = () => {
   const [exportFilename, setExportFilename] = useState('conversation');
   const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'md'>('pdf');
   const [exportLoading, setExportLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +82,7 @@ const AIAssistant = () => {
 
     try {
       // Prepare conversation history based on isolate_message setting
-      const conversationHistory = isolateMessage ? [] : messages.slice(-10);
+      const conversationHistory = isolateMessage ? [] : messages.slice(-MAX_CONVERSATION_HISTORY);
       
       const response = await chatWithAssistant({
         message: input,
@@ -184,7 +188,8 @@ const AIAssistant = () => {
       setExportFilename('conversation');
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export conversation. Please try again.');
+      setErrorMessage('Failed to export conversation. Please try again.');
+      setTimeout(() => setErrorMessage(''), 5000);
     } finally {
       setExportLoading(false);
     }
@@ -195,6 +200,13 @@ const AIAssistant = () => {
 
   return (
     <div className="ai-assistant-new">
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="error-toast">
+          {errorMessage}
+        </div>
+      )}
+      
       {/* Minimalist Header */}
       <div className="assistant-header-minimal">
         <button

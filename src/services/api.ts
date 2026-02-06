@@ -95,7 +95,7 @@ export const chatWithAssistant = (data: AssistantChatRequest) => {
     formData.append('folder_ids', JSON.stringify(data.folder_ids));
   }
   
-  return api.post<AssistantChatResponse>('/api/assistant/chat', formData, {
+  return api.post<AssistantChatResponse>('/assistant/chat', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
