@@ -20,6 +20,9 @@ const Pen2PDF = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [noteTitle, setNoteTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFilename, setExportFilename] = useState('');
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'markdown'>('pdf');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -148,24 +151,39 @@ const Pen2PDF = () => {
   const handleExport = async (format: 'pdf' | 'docx' | 'markdown') => {
     if (!markdown) return;
     
+    setExportFormat(format);
+    setExportFilename(file?.name.replace(/\.[^/.]+$/, '') || 'document');
+    setShowExportModal(true);
+  };
+
+  const performExport = async () => {
+    if (!exportFilename.trim()) {
+      setErrorMessage('Please enter a filename.');
+      return;
+    }
+    
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('content', markdown);
-      formData.append('title', file?.name.replace(/\.[^/.]+$/, '') || 'document');
-      formData.append('format', format);
+      formData.append('title', exportFilename);
+      formData.append('format', exportFormat);
 
       const response = await exportPen2PDF(formData);
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      const extension = format === 'markdown' ? 'md' : format;
-      link.setAttribute('download', `${file?.name.replace(/\.[^/.]+$/, '') || 'document'}.${extension}`);
+      const extension = exportFormat === 'markdown' ? 'md' : exportFormat;
+      link.setAttribute('download', `${exportFilename}.${extension}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      setShowExportModal(false);
+      setErrorMessage('Export successful!');
+      setTimeout(() => setErrorMessage(''), 3000);
     } catch (error) {
       console.error('Export failed:', error);
       setErrorMessage('Failed to export document. Please try again.');
@@ -456,6 +474,44 @@ const Pen2PDF = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showExportModal && (
+        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Export Document</h2>
+              <button onClick={() => setShowExportModal(false)} className="modal-close">×</button>
+            </div>
+            <div className="modal-content">
+              <div className="form-group">
+                <label>Filename</label>
+                <input
+                  type="text"
+                  value={exportFilename}
+                  onChange={(e) => setExportFilename(e.target.value)}
+                  placeholder="Enter filename..."
+                  autoFocus
+                />
+              </div>
+              <p className="modal-description">
+                Export as: <strong>{exportFormat.toUpperCase()}</strong>
+              </p>
+              <div className="modal-actions">
+                <button onClick={() => setShowExportModal(false)} className="cancel-button">
+                  Cancel
+                </button>
+                <button
+                  onClick={performExport}
+                  className="submit-button"
+                  disabled={!exportFilename.trim() || loading}
+                >
+                  {loading ? 'Exporting...' : 'Export'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

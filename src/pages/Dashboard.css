@@ -165,9 +165,11 @@
 }
 
 .actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  display: flex;
+  flex-direction: row;
   gap: var(--spacing-md);
+  justify-content: flex-start;
+  align-items: stretch;
 }
 
 .action-button {
