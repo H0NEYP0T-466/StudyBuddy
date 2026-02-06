@@ -39,3 +39,5 @@ backend/uploads/
 backend/vector_store/
 *.pkl
 *.index
+
+backend/backend

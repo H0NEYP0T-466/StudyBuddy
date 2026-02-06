@@ -82,7 +82,7 @@ const NotesGenerator = () => {
       formData.append('model', model);
       
       const response = await generateNotes(formData);
-      setMarkdown(response.data.notes || '');
+      setMarkdown(response.data.note || '');
       setErrorMessage('Notes generated successfully!');
       setTimeout(() => setErrorMessage(''), 3000);
     } catch (error) {

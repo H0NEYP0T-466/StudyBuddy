@@ -91,7 +91,7 @@ export interface Pen2PDFExportRequest {
 export interface NoteGenerateRequest {
   file: File;
   model: string;
-  folder_id?: number;
+  folder_id?: string;
   title?: string;
 }
 
