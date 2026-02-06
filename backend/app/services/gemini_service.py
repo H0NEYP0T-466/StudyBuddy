@@ -42,4 +42,28 @@ class GeminiService:
             print(f"Gemini Service Error: {str(e)}")
             return f"Error generating with Gemini: {str(e)}"
 
+    async def generate_notes(
+        self, 
+        text: str, 
+        model_name: str = "gemini-2.5-flash",
+        file_paths: list = None
+    ) -> str:
+        """Generate structured study notes in Markdown format."""
+        prompt = f"""Generate detailed, structured study notes from the following content.
+
+Format your notes in Markdown with:
+- Clear headings and subheadings (use # for H1, ## for H2, ### for H3)
+- Bullet points for key concepts
+- Bold (**text**) for important terms
+- Code blocks (```language```) where applicable
+- Organized sections
+- LaTeX for mathematical expressions (use $ for inline and $$ for block equations)
+
+Content:
+{text}
+
+Generate notes:"""
+        
+        return await self.generate_text(prompt, model_name, file_paths)
+
 gemini_service = GeminiService()
