@@ -30,7 +30,9 @@ async def create_folder(folder: dict):
     
     folder_data = {
         "name": folder.get("name"),
-        "created_at": datetime.utcnow()
+        "color": folder.get("color", "#4a9eff"),
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
     }
     
     result = await db.folders.insert_one(folder_data)
@@ -68,10 +70,17 @@ async def update_folder(folder_id: str, folder: dict):
     """Update a folder."""
     db = get_database()
     
+    update_data = {}
+    if folder.get("name"):
+        update_data["name"] = folder.get("name")
+    if folder.get("color"):
+        update_data["color"] = folder.get("color")
+    update_data["updated_at"] = datetime.utcnow()
+    
     try:
         result = await db.folders.update_one(
             {"_id": ObjectId(folder_id)},
-            {"$set": {"name": folder.get("name")}}
+            {"$set": update_data}
         )
     except:
         raise HTTPException(status_code=400, detail="Invalid folder ID")

@@ -60,6 +60,7 @@ export interface AssistantChatRequest {
   model?: string;
   use_rag?: boolean;
   folder_ids?: number[];
+  isolate_message?: boolean;
 }
 
 export interface AssistantChatResponse {
@@ -103,8 +104,25 @@ export type Day = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | '
 export const DAYS: Day[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export const AI_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o (Best)' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast)' },
-  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  // Gemini Models (support file upload)
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', supportsFiles: true },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', supportsFiles: true },
+  
+  // LongCat Models
+  { value: 'longcat-flash-lite', label: 'LongCat-Flash-Lite', supportsFiles: false },
+  { value: 'longcat-flash-chat', label: 'LongCat-Flash-Chat', supportsFiles: false },
+  { value: 'longcat-flash-thinking', label: 'LongCat-Flash-Thinking', supportsFiles: false },
+  { value: 'longcat-flash-thinking-2601', label: 'LongCat-Flash-Thinking-2601', supportsFiles: false },
+  
+  // GitHub Models
+  { value: 'gpt-4o', label: 'gpt-4o', supportsFiles: false },
+  { value: 'gpt-4o-mini', label: 'gpt-4o-mini', supportsFiles: false },
+  { value: 'gpt-5', label: 'gpt-5', supportsFiles: false },
+  { value: 'o1-mini', label: 'o1-mini', supportsFiles: false },
+  { value: 'llama-3.2-90b-vision-instruct', label: 'llama-3.2-90b-vision-instruct', supportsFiles: false },
+  { value: 'llama-3.2-11b-vision-instruct', label: 'llama-3.2-11b-vision-instruct', supportsFiles: false },
+  { value: 'mistral-large-2411', label: 'mistral-large-2411', supportsFiles: false },
+  { value: 'mistral-small', label: 'mistral-small', supportsFiles: false },
+  { value: 'mistral-nemo', label: 'mistral-nemo', supportsFiles: false },
+  { value: 'phi-4', label: 'phi-4', supportsFiles: false },
 ];
