@@ -19,7 +19,7 @@ const AIAssistant = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [model, setModel] = useState(AI_MODELS[0].value);
+  const [model, setModel] = useState(AI_MODELS[2].value);
   const [useRAG, setUseRAG] = useState(false);
   const [isolateMessage, setIsolateMessage] = useState(false);
   const [folders, setFolders] = useState<Folder[]>([]);
