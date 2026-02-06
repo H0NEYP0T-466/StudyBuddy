@@ -63,6 +63,9 @@ venv\Scripts\activate
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# Install Playwright browsers (required for PDF export)
+playwright install chromium
 ```
 
 This will install:
@@ -73,6 +76,7 @@ This will install:
 - FAISS (Vector search)
 - Sentence Transformers (Embeddings)
 - PDF/Document processors
+- Playwright (for PDF export with emoji support)
 - And more...
 
 #### Configure Environment

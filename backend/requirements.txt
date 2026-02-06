@@ -34,7 +34,7 @@ beautifulsoup4>=4.12.0
 lxml>=5.3.0
 
 # Export
-weasyprint>=62.0
+playwright>=1.48.0
 markdown2>=2.5.0
 pymdown-extensions>=10.0
 

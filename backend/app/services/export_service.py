@@ -1,7 +1,7 @@
 import io
 import re
 import logging
-from weasyprint import HTML, CSS
+from playwright.async_api import async_playwright
 from markdown2 import markdown
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -16,24 +16,15 @@ logger = logging.getLogger(__name__)
 # ==========================
 # HTML Template for PDF with MathJax support
 # ==========================
-def create_html_template(title: str, content_html: str, watermark: bool = True) -> str:
+def create_html_template(title: str, content_html: str) -> str:
     """
-    Create HTML template with CSS styling and optional watermark.
+    Create HTML template with CSS styling.
     
     Note: Uses Google Fonts CDN for Noto Sans and Noto Emoji fonts.
     For offline environments, fonts will fall back to system defaults.
     To use local fonts, install Noto fonts on the system or bundle them.
+    Watermark is handled via Playwright PDF options, not in HTML.
     """
-    
-    watermark_style = """
-        @page {
-            @bottom-right {
-                content: '~honeypot';
-                font-size: 10pt;
-                color: #999;
-            }
-        }
-    """ if watermark else ""
     
     html_template = f"""
     <!DOCTYPE html>
@@ -148,8 +139,6 @@ def create_html_template(title: str, content_html: str, watermark: bool = True) 
             .emoji {{
                 font-family: 'Noto Emoji', sans-serif;
             }}
-            
-            {watermark_style}
         </style>
     </head>
     <body>
@@ -219,21 +208,51 @@ class ExportService:
         return output
 
     @staticmethod
-    def export_to_pdf(content: str, title: str, watermark: bool = True) -> io.BytesIO:
-        """Export content as PDF with emoji, markdown, and LaTeX support."""
+    async def export_to_pdf(content: str, title: str, watermark: bool = True) -> io.BytesIO:
+        """Export content as PDF with emoji, markdown, and LaTeX support using Playwright."""
         try:
             # Convert markdown content to HTML
             content_html = markdown_to_html(content)
             
-            # Create full HTML document
-            html_doc = create_html_template(title, content_html, watermark)
+            # Create full HTML document (without watermark in HTML)
+            html_doc = create_html_template(title, content_html)
             
-            # Generate PDF using WeasyPrint
+            # Generate PDF using Playwright (Chromium)
             output = io.BytesIO()
-            HTML(string=html_doc).write_pdf(output)
+            
+            async with async_playwright() as p:
+                browser = await p.chromium.launch()
+                page = await browser.new_page()
+                
+                # Set content and wait for fonts to load
+                await page.set_content(html_doc, wait_until='load')
+                
+                # Wait for fonts to be ready
+                await page.evaluate('document.fonts.ready')
+                
+                # Prepare footer template for watermark (uses WATERMARK_TEXT constant)
+                footer_template = f'<div style="font-size: 10pt; color: #999; text-align: right; width: 100%; padding-right: 20px;">{WATERMARK_TEXT}</div>' if watermark else ''
+                
+                # Generate PDF with proper settings
+                pdf_bytes = await page.pdf(
+                    format='A4',
+                    print_background=True,
+                    margin={
+                        'top': '20px',
+                        'right': '20px',
+                        'bottom': '40px' if watermark else '20px',
+                        'left': '20px'
+                    },
+                    display_header_footer=watermark,
+                    footer_template=footer_template
+                )
+                
+                await browser.close()
+                
+                output.write(pdf_bytes)
             
             output.seek(0)
-            logger.info(f"PDF generated successfully for '{title}'")
+            logger.info(f"PDF generated successfully for '{title}' using Playwright")
             return output
             
         except Exception as e:
