@@ -82,8 +82,23 @@ export const deleteSubtask = (todoId: number, subtaskId: number) =>
   api.delete(`/todos/${todoId}/subtasks/${subtaskId}`);
 
 // Assistant
-export const chatWithAssistant = (data: AssistantChatRequest) => 
-  api.post<AssistantChatResponse>('/assistant/chat', data);
+export const chatWithAssistant = (data: AssistantChatRequest) => {
+  const formData = new FormData();
+  formData.append('message', data.message);
+  formData.append('model', data.model || 'gemini-2.5-flash');
+  formData.append('chat_history', JSON.stringify(data.conversation_history));
+  formData.append('use_rag', String(data.use_rag ?? false));
+  formData.append('isolate_message', String(data.isolate_message ?? false));
+  
+  // Add folder context notes if provided
+  if (data.folder_ids && data.folder_ids.length > 0) {
+    formData.append('folder_ids', JSON.stringify(data.folder_ids));
+  }
+  
+  return api.post<AssistantChatResponse>('/api/assistant/chat', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 
 // Pen2PDF
 export const extractPen2PDF = (formData: FormData) => 

@@ -18,22 +18,35 @@ async def chat_with_assistant(
     model: str = Form(...),
     chat_history: Optional[str] = Form(None),
     context_notes: Optional[str] = Form(None),
-    use_rag: bool = Form(True)
+    use_rag: bool = Form(True),
+    isolate_message: bool = Form(False)
 ):
     """Chat with AI assistant Isabella with RAG integration."""
-    logger.info(f"Chat request received - Model: {model}, RAG: {use_rag}")
+    import time
+    start_time = time.time()
+    
+    logger.info(f"=== Chat Request Started ===")
+    logger.info(f"Model: {model}")
+    logger.info(f"RAG Enabled: {use_rag}")
+    logger.info(f"Isolate Message: {isolate_message}")
     logger.debug(f"User message: {message[:100]}..." if len(message) > 100 else f"User message: {message}")
     
     try:
         # Parse chat history
         history = []
-        if chat_history:
+        if chat_history and not isolate_message:
             try:
                 history = json.loads(chat_history)
-                logger.debug(f"Chat history loaded: {len(history)} messages")
+                logger.info(f"Chat history loaded: {len(history)} messages")
+                # Use last 10 messages for context
+                if len(history) > 10:
+                    history = history[-10:]
+                    logger.info(f"Limited to last 10 messages for context")
             except:
                 logger.warning("Failed to parse chat history, continuing without it")
                 history = []
+        elif isolate_message:
+            logger.info("Isolate message mode - ignoring conversation history")
         
         # Build context from RAG
         rag_context = ""
@@ -63,13 +76,15 @@ async def chat_with_assistant(
         notes_context = ""
         if context_notes:
             notes_context = f"\n\nAdditional context notes:\n{context_notes}\n"
-            logger.info(f"Added context notes: {len(context_notes)} characters")
+            logger.info(f"Notes context added: {len(context_notes)} characters")
         
         # Build final prompt
         final_message = message
         if rag_context or notes_context:
             final_message = f"{rag_context}{notes_context}\n\nUser question: {message}"
-            logger.debug(f"Final prompt length: {len(final_message)} characters")
+        
+        logger.info(f"Final prompt length: {len(final_message)} characters")
+        logger.info(f"Conversation history length: {len(history)} messages")
         
         # Generate response based on model
         response_text = ""
@@ -105,7 +120,8 @@ async def chat_with_assistant(
             
         elif model in ["gpt-4o", "gpt-4o-mini", "gpt-5", "o1-mini", 
                        "llama-3.2-90b-vision-instruct", "llama-3.2-11b-vision-instruct",
-                       "mistral-large-2411", "mistral-small", "mistral-nemo", "phi-4"]:
+                       "mistral-large-2411", "mistral-small", "mistral-nemo", "phi-4",
+                       "gemini-2.5-pro"]:
             logger.info(f"Generating response using GitHub Models: {model}")
             # GitHub Models
             github_history = []
@@ -128,7 +144,15 @@ async def chat_with_assistant(
             logger.error(f"Unknown model specified: {model}")
             response_text = "Error: Unknown model specified"
         
-        logger.info(f"Chat completed successfully - Response: {response_text[:100]}..." if len(response_text) > 100 else f"Chat completed - Response: {response_text}")
+        # Calculate processing time
+        processing_time = time.time() - start_time
+        
+        # Final log summary
+        logger.info(f"=== Chat Completed Successfully ===")
+        logger.info(f"Response length: {len(response_text)} characters")
+        logger.info(f"Processing time: {processing_time:.2f} seconds")
+        logger.info(f"Sources returned: {len(sources)}")
+        logger.debug(f"Response preview: {response_text[:100]}..." if len(response_text) > 100 else f"Response: {response_text}")
         
         return {
             "message": response_text,

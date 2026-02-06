@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
-import { chatWithAssistant, getFolders, getNotes } from '../services/api';
+import { chatWithAssistant, getFolders, getNotes, exportPen2PDF } from '../services/api';
 import type { ChatMessage, Folder, Note } from '../types';
 import { AI_MODELS } from '../types';
 import 'katex/dist/katex.min.css';
@@ -15,12 +15,19 @@ const AIAssistant = () => {
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState(AI_MODELS[0].value);
   const [useRAG, setUseRAG] = useState(false);
+  const [isolateMessage, setIsolateMessage] = useState(false);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<number[]>([]);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [contextNotes, setContextNotes] = useState<Note[]>([]);
   const [sources, setSources] = useState<Note[]>([]);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFilename, setExportFilename] = useState('conversation');
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'md'>('pdf');
+  const [exportLoading, setExportLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadFolders();
@@ -70,12 +77,16 @@ const AIAssistant = () => {
     setLoading(true);
 
     try {
+      // Prepare conversation history based on isolate_message setting
+      const conversationHistory = isolateMessage ? [] : messages.slice(-10);
+      
       const response = await chatWithAssistant({
         message: input,
-        conversation_history: messages,
+        conversation_history: conversationHistory,
         model,
         use_rag: useRAG,
         folder_ids: useRAG ? selectedFolders : undefined,
+        isolate_message: isolateMessage,
       });
 
       const assistantMessage: ChatMessage = {
@@ -96,6 +107,7 @@ const AIAssistant = () => {
       setMessages([...newMessages, errorMessage]);
     } finally {
       setLoading(false);
+      setUploadedFile(null);
     }
   };
 
@@ -115,175 +127,275 @@ const AIAssistant = () => {
   };
 
   const clearChat = () => {
-    if (confirm('Clear chat history?')) {
-      setMessages([]);
-      setSources([]);
+    setMessages([]);
+    setSources([]);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedModel = AI_MODELS.find(m => m.value === model);
+      if (selectedModel?.supportsFiles) {
+        setUploadedFile(e.target.files[0]);
+      }
     }
   };
 
+  const removeUploadedFile = () => {
+    setUploadedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleExportConversation = async () => {
+    if (messages.length === 0) return;
+    
+    setExportLoading(true);
+    try {
+      // Convert conversation to markdown
+      let markdown = `# ${exportFilename}\n\n`;
+      markdown += `**Date:** ${new Date().toLocaleDateString()}\n\n`;
+      markdown += `**Model:** ${model}\n\n`;
+      markdown += `---\n\n`;
+      
+      messages.forEach((msg) => {
+        const role = msg.role === 'user' ? '**You:**' : '**Isabella:**';
+        markdown += `${role}\n\n${msg.content}\n\n---\n\n`;
+      });
+
+      const formData = new FormData();
+      formData.append('content', markdown);
+      formData.append('title', exportFilename);
+      formData.append('format', exportFormat === 'md' ? 'markdown' : exportFormat);
+
+      const response = await exportPen2PDF(formData);
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const extension = exportFormat === 'md' ? 'md' : exportFormat;
+      link.setAttribute('download', `${exportFilename}.${extension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setShowExportModal(false);
+      setExportFilename('conversation');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export conversation. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const selectedModelObj = AI_MODELS.find(m => m.value === model);
+  const supportsFiles = selectedModelObj?.supportsFiles || false;
+
   return (
-    <div className="ai-assistant">
-      <div className="assistant-header">
-        <div>
-          <h1>🤖 Isabella AI Assistant</h1>
-          <p className="subtitle">Your personal study assistant with RAG support</p>
-        </div>
-        <div className="header-controls">
-          <button onClick={clearChat} className="clear-button">
-            🗑️ Clear
-          </button>
-          <button
-            onClick={() => setShowContextPanel(!showContextPanel)}
-            className={`context-button ${showContextPanel ? 'active' : ''}`}
-          >
-            📚 Context
-          </button>
-        </div>
+    <div className="ai-assistant-new">
+      {/* Minimalist Header */}
+      <div className="assistant-header-minimal">
+        <button
+          onClick={() => setShowContextPanel(!showContextPanel)}
+          className={`icon-button ${showContextPanel ? 'active' : ''}`}
+          title="Show Notes"
+        >
+          📚
+        </button>
+        <button onClick={clearChat} className="icon-button" title="Clear Chat">
+          🗑️
+        </button>
+        <button 
+          onClick={() => setShowExportModal(true)} 
+          className="icon-button"
+          disabled={messages.length === 0}
+          title="Export Conversation"
+        >
+          💾
+        </button>
       </div>
 
-      <div className="assistant-container">
-        <div className="assistant-main">
-          <div className="assistant-settings">
-            <div className="setting-group">
-              <label>Model</label>
-              <select value={model} onChange={(e) => setModel(e.target.value)} className="model-select">
+      <div className="assistant-layout">
+        {/* Main Chat Area */}
+        <div className="chat-main">
+          <div className="messages-container-new">
+            {messages.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">🤖</div>
+                <h2>Isabella AI Assistant</h2>
+                <p>Ask me anything about your notes or any study-related questions</p>
+                <div className="quick-actions">
+                  <button onClick={() => setInput('Summarize my recent notes')} className="quick-btn">
+                    📝 Summarize notes
+                  </button>
+                  <button onClick={() => setInput('Explain quantum mechanics')} className="quick-btn">
+                    🧠 Explain concept
+                  </button>
+                  <button onClick={() => setInput('Help me solve this problem')} className="quick-btn">
+                    ✏️ Solve problem
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {messages.map((message, index) => (
+                  <div key={index} className={`chat-message ${message.role}`}>
+                    <div className="message-bubble">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkMath, remarkGfm]}
+                        rehypePlugins={[rehypeKatex]}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="chat-message assistant">
+                    <div className="message-bubble loading">
+                      <div className="typing-indicator">
+                        <span></span><span></span><span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </>
+            )}
+          </div>
+
+          {/* Sources Panel */}
+          {sources.length > 0 && (
+            <div className="sources-compact">
+              <span className="sources-label">📚 Sources:</span>
+              {sources.map((note) => (
+                <span key={note.id} className="source-tag">
+                  {note.title}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Controls (Bottom) */}
+          <div className="controls-bottom">
+            <div className="control-row">
+              <select 
+                value={model} 
+                onChange={(e) => setModel(e.target.value)} 
+                className="model-select-compact"
+              >
                 {AI_MODELS.map((m) => (
                   <option key={m.value} value={m.value}>
                     {m.label}
                   </option>
                 ))}
               </select>
-            </div>
-            
-            <div className="setting-group">
-              <label className="checkbox-label">
+
+              <label className="checkbox-compact">
                 <input
                   type="checkbox"
                   checked={useRAG}
                   onChange={(e) => setUseRAG(e.target.checked)}
                 />
-                <span>Use RAG (Search Notes)</span>
+                <span>Use RAG</span>
               </label>
-            </div>
 
-            {useRAG && (
-              <div className="setting-group">
-                <label>Selected Folders: {selectedFolders.length}</label>
-              </div>
-            )}
-          </div>
+              <label className="checkbox-compact">
+                <input
+                  type="checkbox"
+                  checked={isolateMessage}
+                  onChange={(e) => setIsolateMessage(e.target.checked)}
+                />
+                <span>Isolate Message</span>
+              </label>
 
-          <div className="chat-container">
-            <div className="messages-container">
-              {messages.length === 0 ? (
-                <div className="empty-chat">
-                  <span className="empty-icon">🤖</span>
-                  <h3>Hi! I'm Isabella</h3>
-                  <p>Ask me anything about your notes or any study-related questions!</p>
-                  <div className="suggestions">
-                    <button onClick={() => setInput('Summarize my recent notes')} className="suggestion">
-                      Summarize my notes
-                    </button>
-                    <button onClick={() => setInput('Explain quantum mechanics')} className="suggestion">
-                      Explain a concept
-                    </button>
-                    <button onClick={() => setInput('Help me with this problem')} className="suggestion">
-                      Solve a problem
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {messages.map((message, index) => (
-                    <div key={index} className={`message ${message.role}`}>
-                      <div className="message-avatar">
-                        {message.role === 'user' ? '👤' : '🤖'}
-                      </div>
-                      <div className="message-content">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkMath, remarkGfm]}
-                          rehypePlugins={[rehypeKatex]}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  ))}
-                  {loading && (
-                    <div className="message assistant">
-                      <div className="message-avatar">🤖</div>
-                      <div className="message-content loading-dots">
-                        <span></span><span></span><span></span>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </>
+              {useRAG && (
+                <span className="info-text">
+                  {selectedFolders.length} folder{selectedFolders.length !== 1 ? 's' : ''} selected
+                </span>
               )}
             </div>
 
-            {sources.length > 0 && (
-              <div className="sources-panel">
-                <h4>📚 Sources Used</h4>
-                <div className="sources-list">
-                  {sources.map((note) => (
-                    <div key={note.id} className="source-item">
-                      <span className="source-icon">📄</span>
-                      <span className="source-title">{note.title}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* File Upload Preview */}
+            {uploadedFile && (
+              <div className="file-preview">
+                <span className="file-icon">📎</span>
+                <span className="file-name">{uploadedFile.name}</span>
+                <button onClick={removeUploadedFile} className="file-remove">×</button>
               </div>
             )}
 
-            <div className="input-container">
+            {/* Input Area */}
+            <div className="input-area">
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+                accept="image/*"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`attach-button ${!supportsFiles ? 'disabled' : ''}`}
+                disabled={!supportsFiles}
+                title={supportsFiles ? 'Attach file' : 'File upload only available for Gemini models'}
+              >
+                📎
+              </button>
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask Isabella anything... (Shift+Enter for new line)"
-                className="chat-input"
-                rows={2}
+                placeholder="Message Isabella..."
+                className="input-field"
+                rows={1}
               />
-              <button onClick={handleSend} disabled={!input.trim() || loading} className="send-button">
+              <button 
+                onClick={handleSend} 
+                disabled={!input.trim() || loading} 
+                className="send-button-new"
+              >
                 ▲
               </button>
             </div>
           </div>
         </div>
 
+        {/* Context Panel (Notes) */}
         {showContextPanel && (
-          <div className="context-panel">
-            <h3>RAG Context</h3>
-            <p className="context-description">
-              Select folders to give Isabella context from your notes
+          <div className="context-panel-new">
+            <h3>📚 Notes Context</h3>
+            <p className="panel-description">
+              Select folders to include notes in conversation
             </p>
             
-            <div className="folders-list">
+            <div className="folders-grid">
               {folders.map((folder) => (
-                <label key={folder.id} className="folder-checkbox">
+                <label key={folder.id} className="folder-item">
                   <input
                     type="checkbox"
                     checked={selectedFolders.includes(folder.id)}
                     onChange={() => toggleFolder(folder.id)}
                   />
-                  <span style={{ color: folder.color }}>📁</span>
-                  <span>{folder.name}</span>
+                  <span className="folder-icon" style={{ color: folder.color }}>📁</span>
+                  <span className="folder-name">{folder.name}</span>
                 </label>
               ))}
             </div>
 
             {contextNotes.length > 0 && (
-              <div className="context-info">
-                <h4>📄 {contextNotes.length} notes available</h4>
-                <div className="context-notes-list">
+              <div className="notes-preview">
+                <h4>📄 Available Notes ({contextNotes.length})</h4>
+                <div className="notes-list">
                   {contextNotes.slice(0, 10).map((note) => (
-                    <div key={note.id} className="context-note-item">
+                    <div key={note.id} className="note-item">
                       {note.title}
                     </div>
                   ))}
                   {contextNotes.length > 10 && (
-                    <div className="context-note-item muted">
+                    <div className="note-item more">
                       +{contextNotes.length - 10} more
                     </div>
                   )}
@@ -293,6 +405,58 @@ const AIAssistant = () => {
           </div>
         )}
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Export Conversation</h2>
+            
+            <div className="modal-form">
+              <label>
+                Filename
+                <input
+                  type="text"
+                  value={exportFilename}
+                  onChange={(e) => setExportFilename(e.target.value)}
+                  placeholder="conversation"
+                  className="modal-input"
+                />
+              </label>
+
+              <label>
+                Format
+                <select 
+                  value={exportFormat} 
+                  onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'docx' | 'md')}
+                  className="modal-select"
+                >
+                  <option value="pdf">PDF</option>
+                  <option value="docx">DOCX</option>
+                  <option value="md">Markdown</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                onClick={() => setShowExportModal(false)} 
+                className="modal-button secondary"
+                disabled={exportLoading}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleExportConversation} 
+                className="modal-button primary"
+                disabled={exportLoading || !exportFilename.trim()}
+              >
+                {exportLoading ? 'Exporting...' : 'Export'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
