@@ -91,12 +91,9 @@ export const extractPen2PDF = (formData: FormData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-export const exportPen2PDF = (data: { 
-  markdown: string; 
-  format: 'pdf' | 'docx' | 'markdown';
-  title?: string;
-}) => api.post('/pen2pdf/export', data, {
+export const exportPen2PDF = (formData: FormData) => api.post('/api/pen2pdf/export', formData, {
   responseType: 'blob',
+  headers: { 'Content-Type': 'multipart/form-data' },
 });
 
 export default api;
