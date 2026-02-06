@@ -21,6 +21,11 @@ const FolderNotes = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [loading, setLoading] = useState(true);
+  const editorRef = useCallback((node: HTMLTextAreaElement | null) => {
+    if (node) {
+      (window as any).__noteEditorRef = node;
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -92,7 +97,8 @@ const FolderNotes = () => {
     setIsEditing(false);
   };
 
-  const insertMarkdown = (syntax: string, textareaRef: HTMLTextAreaElement | null) => {
+  const insertMarkdown = (syntax: string) => {
+    const textareaRef = (window as any).__noteEditorRef;
     if (!textareaRef) return;
 
     const start = textareaRef.selectionStart;
@@ -302,21 +308,21 @@ const FolderNotes = () => {
                   />
                   <div className="editor-toolbar">
                     <button 
-                      onClick={() => insertMarkdown('h1', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('h1')}
                       className="toolbar-btn"
                       title="Heading 1"
                     >
                       H1
                     </button>
                     <button 
-                      onClick={() => insertMarkdown('h2', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('h2')}
                       className="toolbar-btn"
                       title="Heading 2"
                     >
                       H2
                     </button>
                     <button 
-                      onClick={() => insertMarkdown('h3', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('h3')}
                       className="toolbar-btn"
                       title="Heading 3"
                     >
@@ -324,14 +330,14 @@ const FolderNotes = () => {
                     </button>
                     <div className="toolbar-divider" />
                     <button 
-                      onClick={() => insertMarkdown('bold', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('bold')}
                       className="toolbar-btn"
                       title="Bold"
                     >
                       <strong>B</strong>
                     </button>
                     <button 
-                      onClick={() => insertMarkdown('italic', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('italic')}
                       className="toolbar-btn"
                       title="Italic"
                     >
@@ -339,21 +345,21 @@ const FolderNotes = () => {
                     </button>
                     <div className="toolbar-divider" />
                     <button 
-                      onClick={() => insertMarkdown('bullet', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('bullet')}
                       className="toolbar-btn"
                       title="Bullet List"
                     >
                       •
                     </button>
                     <button 
-                      onClick={() => insertMarkdown('numbered', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('numbered')}
                       className="toolbar-btn"
                       title="Numbered List"
                     >
                       1.
                     </button>
                     <button 
-                      onClick={() => insertMarkdown('code', document.querySelector('.note-content-editor') as HTMLTextAreaElement)}
+                      onClick={() => insertMarkdown('code')}
                       className="toolbar-btn"
                       title="Code Block"
                     >
@@ -361,6 +367,7 @@ const FolderNotes = () => {
                     </button>
                   </div>
                   <textarea
+                    ref={editorRef}
                     value={formData.content}
                     onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                     className="note-content-editor"
