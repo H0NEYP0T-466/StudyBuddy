@@ -23,7 +23,7 @@ const FolderNotes = () => {
   const [loading, setLoading] = useState(true);
   const editorRef = useCallback((node: HTMLTextAreaElement | null) => {
     if (node) {
-      (window as any).__noteEditorRef = node;
+      (window as unknown as Record<string, HTMLTextAreaElement>).__noteEditorRef = node;
     }
   }, []);
 
@@ -98,7 +98,7 @@ const FolderNotes = () => {
   };
 
   const insertMarkdown = (syntax: string) => {
-    const textareaRef = (window as any).__noteEditorRef;
+    const textareaRef = (window as unknown as Record<string, HTMLTextAreaElement>).__noteEditorRef;
     if (!textareaRef) return;
 
     const start = textareaRef.selectionStart;
