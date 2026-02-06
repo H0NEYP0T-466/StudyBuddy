@@ -23,7 +23,7 @@ const NotesGenerator = () => {
   const [previewMode, setPreviewMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveModalStep, setSaveModalStep] = useState<'folder' | 'title'>('folder');
-  const [selectedFolderId, setSelectedFolderId] = useState<number | undefined>();
+  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [noteTitle, setNoteTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +82,7 @@ const NotesGenerator = () => {
       formData.append('model', model);
       
       const response = await generateNotes(formData);
-      setMarkdown(response.data.note.content || '');
+      setMarkdown(response.data.notes || '');
       setErrorMessage('Notes generated successfully!');
       setTimeout(() => setErrorMessage(''), 3000);
     } catch (error) {
@@ -91,6 +91,11 @@ const NotesGenerator = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStartEmpty = () => {
+    setMarkdown('# New Document\n\nStart typing your notes here...');
+    setFile(null);
   };
 
   const insertMarkdown = (syntax: string) => {
@@ -190,7 +195,7 @@ const NotesGenerator = () => {
     setNoteTitle('');
   };
 
-  const handleFolderSelect = (folderId?: number) => {
+  const handleFolderSelect = (folderId?: string) => {
     setSelectedFolderId(folderId);
     setSaveModalStep('title');
   };
@@ -296,6 +301,14 @@ const NotesGenerator = () => {
               className="generate-button"
             >
               {loading ? '⏳ Generating...' : '✨ Generate Notes'}
+            </button>
+
+            <button
+              onClick={handleStartEmpty}
+              disabled={loading}
+              className="generate-button secondary"
+            >
+              📝 Start Empty Document
             </button>
           </div>
         </div>

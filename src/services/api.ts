@@ -24,19 +24,19 @@ const api = axios.create({
 export const getFolders = () => api.get<Folder[]>('/api/folders');
 export const createFolder = (data: { name: string; color: string }) => 
   api.post<Folder>('/api/folders', data);
-export const updateFolder = (id: number, data: { name?: string; color?: string }) => 
+export const updateFolder = (id: string, data: { name?: string; color?: string }) => 
   api.put<Folder>(`/api/folders/${id}`, data);
-export const deleteFolder = (id: number) => api.delete(`/api/folders/${id}`);
+export const deleteFolder = (id: string) => api.delete(`/api/folders/${id}`);
 
 // Notes
-export const getNotes = (folderId?: number) => 
+export const getNotes = (folderId?: string) => 
   api.get<Note[]>('/api/notes', { params: { folder_id: folderId } });
-export const getNoteById = (id: number) => api.get<Note>(`/api/notes/${id}`);
-export const createNote = (data: { title: string; content: string; folder_id?: number }) => 
+export const getNoteById = (id: string) => api.get<Note>(`/api/notes/${id}`);
+export const createNote = (data: { title: string; content: string; folder_id?: string }) => 
   api.post<Note>('/api/notes', data);
-export const updateNote = (id: number, data: { title?: string; content?: string; folder_id?: number }) => 
+export const updateNote = (id: string, data: { title?: string; content?: string; folder_id?: string }) => 
   api.put<Note>(`/api/notes/${id}`, data);
-export const deleteNote = (id: number) => api.delete(`/api/notes/${id}`);
+export const deleteNote = (id: string) => api.delete(`/api/notes/${id}`);
 export const generateNotes = (formData: FormData) => 
   api.post<NoteGenerateResponse>('/api/notes/generate', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

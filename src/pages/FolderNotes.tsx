@@ -30,11 +30,11 @@ const FolderNotes = () => {
   const loadData = useCallback(async () => {
     try {
       const [notesRes, foldersRes] = await Promise.all([
-        getNotes(Number(id)),
+        getNotes(id),
         getFolders(),
       ]);
       setNotes(notesRes.data);
-      const currentFolder = foldersRes.data.find((f) => f.id === Number(id));
+      const currentFolder = foldersRes.data.find((f) => f.id === id);
       setFolder(currentFolder || null);
     } catch (error) {
       console.error('Failed to load notes:', error);
@@ -53,7 +53,7 @@ const FolderNotes = () => {
     if (!formData.title.trim()) return;
     
     try {
-      await createNote({ ...formData, folder_id: Number(id) });
+      await createNote({ ...formData, folder_id: id });
       setShowCreateModal(false);
       setFormData({ title: '', content: '' });
       loadData();
@@ -69,7 +69,7 @@ const FolderNotes = () => {
       await updateNote(selectedNote.id, formData);
       setIsEditing(false);
       loadData();
-      const updatedNote = await (await getNotes(Number(id))).data.find((n) => n.id === selectedNote.id);
+      const updatedNote = await (await getNotes(id)).data.find((n) => n.id === selectedNote.id);
       if (updatedNote) setSelectedNote(updatedNote);
     } catch (error) {
       console.error('Failed to update note:', error);
