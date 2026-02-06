@@ -217,7 +217,9 @@ async def generate_notes(
             notes = "Model not supported for notes generation"
         
         return {
-            "notes": notes,
+            "note": {
+                "content": notes
+            },
             "model_used": model
         }
         
