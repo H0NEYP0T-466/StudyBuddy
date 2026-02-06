@@ -132,6 +132,17 @@
   cursor: not-allowed;
 }
 
+.generate-button.secondary {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.generate-button.secondary:hover:not(:disabled) {
+  background: var(--bg-panel-hover);
+  border-color: var(--border-hover);
+}
+
 .editor-section {
   display: flex;
   flex-direction: column;

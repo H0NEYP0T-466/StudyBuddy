@@ -100,6 +100,9 @@ export const chatWithAssistant = (data: AssistantChatRequest) => {
   });
 };
 
+export const getChatMessages = (limit: number = 15) => 
+  api.get<ChatMessage[]>('/api/assistant/messages', { params: { limit } });
+
 // Pen2PDF
 export const extractPen2PDF = (formData: FormData) => 
   api.post<Pen2PDFExtractResponse>('/api/pen2pdf/extract', formData, {
