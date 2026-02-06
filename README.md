@@ -45,6 +45,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 3. Install dependencies:
 ```bash
 pip install -r requirements.txt
+
+# Install Playwright browsers (required for PDF export)
+playwright install chromium
 ```
 
 4. Configure environment variables:

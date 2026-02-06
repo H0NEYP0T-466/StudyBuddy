@@ -1,7 +1,6 @@
 import io
 import re
 import logging
-import asyncio
 from playwright.async_api import async_playwright
 from markdown2 import markdown
 from docx import Document
@@ -17,20 +16,15 @@ logger = logging.getLogger(__name__)
 # ==========================
 # HTML Template for PDF with MathJax support
 # ==========================
-def create_html_template(title: str, content_html: str, watermark: bool = True) -> str:
+def create_html_template(title: str, content_html: str) -> str:
     """
-    Create HTML template with CSS styling and optional watermark.
+    Create HTML template with CSS styling.
     
     Note: Uses Google Fonts CDN for Noto Sans and Noto Emoji fonts.
     For offline environments, fonts will fall back to system defaults.
     To use local fonts, install Noto fonts on the system or bundle them.
+    Watermark is handled via Playwright PDF options, not in HTML.
     """
-    
-    watermark_html = """
-        <div style="position: fixed; bottom: 20px; right: 20px; font-size: 10pt; color: #999; z-index: 9999;">
-            ~honeypot
-        </div>
-    """ if watermark else ""
     
     html_template = f"""
     <!DOCTYPE html>
@@ -150,7 +144,6 @@ def create_html_template(title: str, content_html: str, watermark: bool = True) 
     <body>
         <h1>{title}</h1>
         {content_html}
-        {watermark_html}
     </body>
     </html>
     """
@@ -221,8 +214,8 @@ class ExportService:
             # Convert markdown content to HTML
             content_html = markdown_to_html(content)
             
-            # Create full HTML document
-            html_doc = create_html_template(title, content_html, watermark)
+            # Create full HTML document (without watermark in HTML)
+            html_doc = create_html_template(title, content_html)
             
             # Generate PDF using Playwright (Chromium)
             output = io.BytesIO()
@@ -232,7 +225,13 @@ class ExportService:
                 page = await browser.new_page()
                 
                 # Set content and wait for fonts to load
-                await page.set_content(html_doc, wait_until='networkidle')
+                await page.set_content(html_doc, wait_until='load')
+                
+                # Wait for fonts to be ready
+                await page.evaluate('document.fonts.ready')
+                
+                # Prepare footer template for watermark
+                footer_template = '<div style="font-size: 10pt; color: #999; text-align: right; width: 100%; padding-right: 20px;">~honeypot</div>' if watermark else ''
                 
                 # Generate PDF with proper settings
                 pdf_bytes = await page.pdf(
@@ -241,9 +240,11 @@ class ExportService:
                     margin={
                         'top': '20px',
                         'right': '20px',
-                        'bottom': '20px',
+                        'bottom': '40px' if watermark else '20px',
                         'left': '20px'
-                    }
+                    },
+                    display_header_footer=watermark,
+                    footer_template=footer_template if watermark else None
                 )
                 
                 await browser.close()
