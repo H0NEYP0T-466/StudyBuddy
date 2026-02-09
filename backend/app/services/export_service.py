@@ -51,7 +51,6 @@ class WatermarkCanvas(canvas.Canvas):
             self.restoreState()
         canvas.Canvas.showPage(self)
 
-
 def render_latex_to_image(latex_text: str, inline: bool = True) -> str:
     """
     Render LaTeX formula to a PNG image and return the file path.
@@ -68,63 +67,70 @@ def render_latex_to_image(latex_text: str, inline: bool = True) -> str:
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
         temp_file.close()
         
-        # Configure matplotlib for LaTeX rendering
-        fig = plt.figure(figsize=(0.01, 0.01))
-        fig.patch.set_facecolor('none')
-        fig.patch.set_alpha(0)
-        
-        # Render the LaTeX formula
-        # Use mathtext parser for better compatibility
+        # Use larger font size for better readability
+        fontsize = 20 if inline else 24
         text = f'${latex_text}$'
         
-        # Calculate the size needed for the text
-        renderer = fig.canvas.get_renderer()
-        t = fig.text(0, 0, text, fontsize=12 if inline else 14, color='black')
-        bbox = t.get_window_extent(renderer=renderer)
+        # Create a figure with transparent background for size calculation
+        fig, ax = plt.subplots(figsize=(1, 1))
+        ax.axis('off')
+        fig.patch.set_visible(False)
         
-        # Close the figure and create a new one with proper size
+        # Render text to calculate bounding box
+        t = ax.text(0.5, 0.5, text, fontsize=fontsize, ha='center', va='center')
+        
+        # Draw to calculate proper bbox
+        fig.canvas.draw()
+        bbox = t.get_window_extent(renderer=fig.canvas.get_renderer())
+        
+        # Convert to figure coordinates
+        bbox_inches = bbox.transformed(fig.dpi_scale_trans.inverted())
+        
         plt.close(fig)
         
-        # Convert bbox dimensions from pixels to inches (assuming 100 dpi)
-        width_inches = bbox.width / 100.0
-        height_inches = bbox.height / 100.0
+        # Add padding (in inches)
+        padding = 0.2
+        width = bbox_inches.width + padding
+        height = bbox_inches.height + padding
         
-        # Add some padding
-        width_inches += 0.1
-        height_inches += 0.1
+        # Ensure minimum size
+        width = max(width, 1.0)
+        height = max(height, 0.4)
         
-        # Create figure with proper size
-        fig = plt.figure(figsize=(width_inches, height_inches))
+        # Create final figure with calculated size
+        dpi = 200  # High DPI for quality
+        fig = plt.figure(figsize=(width, height), dpi=dpi)
         fig.patch.set_facecolor('white')
+        
+        # Add axes that fills the figure
         ax = fig.add_axes([0, 0, 1, 1])
         ax.axis('off')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
         
-        # Render the text centered
-        ax.text(0.5, 0.5, text, 
-                fontsize=12 if inline else 14, 
-                color='black',
-                ha='center', 
+        # Render the LaTeX text centered
+        ax.text(0.5, 0.5, text,
+                fontsize=fontsize,
+                ha='center',
                 va='center',
-                transform=ax.transAxes)
+                color='black')
         
-        # Save the figure
-        plt.savefig(temp_file.name, 
-                   format='png', 
-                   dpi=150, 
+        # Save with high quality
+        plt.savefig(temp_file.name,
+                   format='png',
+                   dpi=dpi,
                    bbox_inches='tight',
-                   pad_inches=0.05,
+                   pad_inches=0.15,
                    facecolor='white',
                    edgecolor='none')
         plt.close(fig)
         
-        logger.debug(f"Rendered LaTeX to image: {temp_file.name}")
+        logger.debug(f"Rendered LaTeX to image: {temp_file.name} (size: {width}x{height} inches @ {dpi} DPI)")
         return temp_file.name
         
     except Exception as e:
         logger.error(f"Failed to render LaTeX '{latex_text}': {str(e)}")
-        # Return None to indicate failure
         return None
-
 
 def create_styles():
     """Create custom paragraph styles for PDF."""
@@ -195,11 +201,39 @@ def create_styles():
     return styles
 
 
+def normalize_heading_level(line: str) -> tuple:
+    """
+    Normalize heading levels: treat 4+ '#' symbols as level 3 (###).
+    
+    Args:
+        line: The markdown line to check
+        
+    Returns:
+        Tuple of (normalized_line, level) where level is 0 (not a heading), 1, 2, or 3
+    """
+    match = re.match(r'^(#{1,})\s+(.+)$', line)
+    if not match:
+        return line, 0
+    
+    hashes, text = match.groups()
+    level = len(hashes)
+    
+    # Normalize: treat 4+ as level 3
+    if level >= 4:
+        level = 3
+        # Return normalized line with exactly 3 hashes
+        return f"### {text}", level
+    
+    return line, level
+
+
 def parse_markdown_to_reportlab(content: str, styles) -> list:
     """
     Parse markdown content and convert to ReportLab flowables.
     Supports headings, paragraphs, bold, italic, code blocks, lists, and LaTeX formulas.
     LaTeX formulas are rendered as images and placed inline.
+    
+    Heading normalization: Any heading with 4 or more '#' symbols is treated as '###'.
     """
     elements = []
     lines = content.split('\n')
@@ -233,37 +267,40 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
             i += 1
             continue
         
+        # Normalize heading levels (treat 4+ '#' as 3)
+        normalized_line, heading_level = normalize_heading_level(line)
+        
         # Handle headings
-        if line.startswith('# '):
+        if heading_level == 1:
             if in_list:
                 elements.extend(list_items)
                 list_items = []
                 in_list = False
-            text = line[2:].strip()
+            text = normalized_line[2:].strip()  # Remove '# '
             processed_elements = format_inline_markdown(text, styles, temp_image_files)
             if isinstance(processed_elements, list):
                 elements.extend(processed_elements)
             else:
                 elements.append(Paragraph(processed_elements, styles['CustomTitle']))
             elements.append(Spacer(1, 0.3*inch))
-        elif line.startswith('## '):
+        elif heading_level == 2:
             if in_list:
                 elements.extend(list_items)
                 list_items = []
                 in_list = False
-            text = line[3:].strip()
+            text = normalized_line[3:].strip()  # Remove '## '
             processed_elements = format_inline_markdown(text, styles, temp_image_files)
             if isinstance(processed_elements, list):
                 elements.extend(processed_elements)
             else:
                 elements.append(Paragraph(processed_elements, styles['CustomHeading2']))
             elements.append(Spacer(1, 0.2*inch))
-        elif line.startswith('### '):
+        elif heading_level == 3:
             if in_list:
                 elements.extend(list_items)
                 list_items = []
                 in_list = False
-            text = line[4:].strip()
+            text = normalized_line[4:].strip()  # Remove '### '
             processed_elements = format_inline_markdown(text, styles, temp_image_files)
             if isinstance(processed_elements, list):
                 elements.extend(processed_elements)
@@ -354,6 +391,45 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
     return elements, temp_image_files
 
 
+def fix_latex_delimiters(text: str) -> str:
+    """
+    Fix common LaTeX delimiter issues:
+    1. Add missing closing $ delimiters
+    2. Handle backtick-enclosed LaTeX (convert `$...$` to $...$)
+    
+    Args:
+        text: The text potentially containing LaTeX
+        
+    Returns:
+        Text with fixed LaTeX delimiters
+    """
+    # First, handle backtick-enclosed LaTeX: `$...$` or `$...` -> $...$
+    # This handles cases like `$formula$` or `$formula with backtick at end
+    text = re.sub(r'`\$([^$`]+)\$`', r'$\1$', text)  # `$...$` -> $...$
+    text = re.sub(r'`\$([^$`]+)`', r'$\1$', text)    # `$...` -> $...$
+    
+    # Now fix unmatched $ delimiters
+    # Find all $ positions
+    dollar_positions = [m.start() for m in re.finditer(r'\$', text)]
+    
+    # If odd number of $, we have an unclosed delimiter
+    if len(dollar_positions) % 2 == 1:
+        # Add closing $ at the end of the line or before newline
+        lines = text.split('\n')
+        fixed_lines = []
+        
+        for line in lines:
+            line_dollars = line.count('$')
+            if line_dollars % 2 == 1:
+                # This line has unclosed $
+                line = line.rstrip() + '$'
+            fixed_lines.append(line)
+        
+        text = '\n'.join(fixed_lines)
+    
+    return text
+
+
 def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str:
     """
     Format inline markdown elements like bold, italic, code, and LaTeX.
@@ -373,6 +449,9 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
     """
     if temp_image_files is None:
         temp_image_files = []
+    
+    # Fix LaTeX delimiter issues before processing
+    text = fix_latex_delimiters(text)
     
     # First, escape only ampersands in user content (< and > are OK for our XML tags)
     text = text.replace('&', '&amp;')
@@ -395,7 +474,7 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
                 parts.append(('text', formatted_text))
             
             # Render LaTeX formula as image
-            latex_formula = match.group(1)
+            latex_formula = match.group(1).strip()
             image_path = render_latex_to_image(latex_formula, inline=True)
             
             if image_path:
@@ -403,8 +482,8 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
                 # Store both image path and formula for fallback
                 parts.append(('image', image_path, latex_formula))
             else:
-                # Fallback to italic if image rendering fails
-                parts.append(('text', f'<i>{latex_formula}</i>'))
+                # Fallback to monospace if image rendering fails
+                parts.append(('text', f'<font name="Courier">{latex_formula}</font>'))
             
             last_end = match.end()
         
@@ -417,14 +496,14 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
         # If we have images, we need to return a list of flowables
         if any(p[0] == 'image' for p in parts):
             if styles is None:
-                # Can't create flowables without styles, return text only with formulas in italic
+                # Can't create flowables without styles, return text only with formulas in monospace
                 result = []
                 for p in parts:
                     if p[0] == 'text':
                         result.append(p[1])
                     else:  # image
                         # Use the formula text (p[2]) for fallback
-                        result.append(f'<i>{p[2]}</i>')
+                        result.append(f'<font name="Courier">{p[2]}</font>')
                 return ''.join(result)
             
             flowables = []
@@ -439,11 +518,28 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
                     try:
                         # Create inline image with appropriate size
                         img = Image(part_value)
-                        # Scale image to fit inline (roughly text height)
-                        img.drawHeight = 0.2 * inch
-                        img.drawWidth = img.drawHeight * (img.imageWidth / float(img.imageHeight))
+                        
+                        # Get the actual image dimensions
+                        actual_width = img.imageWidth
+                        actual_height = img.imageHeight
+                        
+                        # Scale to a reasonable inline size (0.5 inch height as base)
+                        # This gives us readable math inline with text
+                        target_height = 0.5 * inch
+                        
+                        # Maintain aspect ratio
+                        aspect_ratio = actual_width / float(actual_height)
+                        img.drawHeight = target_height
+                        img.drawWidth = target_height * aspect_ratio
+                        
+                        # Cap maximum width to avoid overflow
+                        max_width = 4 * inch
+                        if img.drawWidth > max_width:
+                            img.drawWidth = max_width
+                            img.drawHeight = max_width / aspect_ratio
+                        
                         flowables.append(img)
-                        logger.debug(f"Added image flowable: {part_value}")
+                        logger.debug(f"Added image flowable: {part_value} ({img.drawWidth}, {img.drawHeight})")
                     except Exception as e:
                         logger.error(f"Failed to create image from {part_value}: {str(e)}")
             
@@ -476,8 +572,8 @@ def apply_markdown_formatting(text: str) -> str:
     # Only match single underscores that are not adjacent to other underscores
     text = re.sub(r'(?<![_a-zA-Z0-9])_([^_]+?)_(?![_a-zA-Z0-9])', r'<i>\1</i>', text)
     
-    # Handle inline code `code`
-    text = re.sub(r'`([^`]+)`', r'<font name="Courier" color="#333333">\1</font>', text)
+    # Handle inline code `code` (but not LaTeX which was already handled)
+    text = re.sub(r'`([^`$]+)`', r'<font name="Courier" color="#333333">\1</font>', text)
     
     return text
 
