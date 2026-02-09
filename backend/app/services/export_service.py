@@ -1,6 +1,9 @@
 import io
 import re
 import logging
+import tempfile
+import os
+from pathlib import Path
 from markdown2 import markdown
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -8,9 +11,13 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Preformatted
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Preformatted, Image
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+from matplotlib import mathtext
 
 # ==========================
 # Configuration
@@ -43,6 +50,80 @@ class WatermarkCanvas(canvas.Canvas):
             )
             self.restoreState()
         canvas.Canvas.showPage(self)
+
+
+def render_latex_to_image(latex_text: str, inline: bool = True) -> str:
+    """
+    Render LaTeX formula to a PNG image and return the file path.
+    
+    Args:
+        latex_text: The LaTeX formula (without $ delimiters)
+        inline: Whether this is inline math (True) or display math (False)
+    
+    Returns:
+        Path to the generated PNG image file
+    """
+    try:
+        # Create a temporary file for the image
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+        temp_file.close()
+        
+        # Configure matplotlib for LaTeX rendering
+        fig = plt.figure(figsize=(0.01, 0.01))
+        fig.patch.set_facecolor('none')
+        fig.patch.set_alpha(0)
+        
+        # Render the LaTeX formula
+        # Use mathtext parser for better compatibility
+        text = f'${latex_text}$'
+        
+        # Calculate the size needed for the text
+        renderer = fig.canvas.get_renderer()
+        t = fig.text(0, 0, text, fontsize=12 if inline else 14, color='black')
+        bbox = t.get_window_extent(renderer=renderer)
+        
+        # Close the figure and create a new one with proper size
+        plt.close(fig)
+        
+        # Convert bbox dimensions from pixels to inches (assuming 100 dpi)
+        width_inches = bbox.width / 100.0
+        height_inches = bbox.height / 100.0
+        
+        # Add some padding
+        width_inches += 0.1
+        height_inches += 0.1
+        
+        # Create figure with proper size
+        fig = plt.figure(figsize=(width_inches, height_inches))
+        fig.patch.set_facecolor('white')
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.axis('off')
+        
+        # Render the text centered
+        ax.text(0.5, 0.5, text, 
+                fontsize=12 if inline else 14, 
+                color='black',
+                ha='center', 
+                va='center',
+                transform=ax.transAxes)
+        
+        # Save the figure
+        plt.savefig(temp_file.name, 
+                   format='png', 
+                   dpi=150, 
+                   bbox_inches='tight',
+                   pad_inches=0.05,
+                   facecolor='white',
+                   edgecolor='none')
+        plt.close(fig)
+        
+        logger.debug(f"Rendered LaTeX to image: {temp_file.name}")
+        return temp_file.name
+        
+    except Exception as e:
+        logger.error(f"Failed to render LaTeX '{latex_text}': {str(e)}")
+        # Return None to indicate failure
+        return None
 
 
 def create_styles():
@@ -117,7 +198,8 @@ def create_styles():
 def parse_markdown_to_reportlab(content: str, styles) -> list:
     """
     Parse markdown content and convert to ReportLab flowables.
-    Supports headings, paragraphs, bold, italic, code blocks, and lists.
+    Supports headings, paragraphs, bold, italic, code blocks, lists, and LaTeX formulas.
+    LaTeX formulas are rendered as images and placed inline.
     """
     elements = []
     lines = content.split('\n')
@@ -126,6 +208,7 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
     code_lines = []
     in_list = False
     list_items = []
+    temp_image_files = []  # Track temporary image files for cleanup
     
     while i < len(lines):
         line = lines[i]
@@ -157,7 +240,11 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
                 list_items = []
                 in_list = False
             text = line[2:].strip()
-            elements.append(Paragraph(text, styles['CustomTitle']))
+            processed_elements = format_inline_markdown(text, styles, temp_image_files)
+            if isinstance(processed_elements, list):
+                elements.extend(processed_elements)
+            else:
+                elements.append(Paragraph(processed_elements, styles['CustomTitle']))
             elements.append(Spacer(1, 0.3*inch))
         elif line.startswith('## '):
             if in_list:
@@ -165,7 +252,11 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
                 list_items = []
                 in_list = False
             text = line[3:].strip()
-            elements.append(Paragraph(text, styles['CustomHeading2']))
+            processed_elements = format_inline_markdown(text, styles, temp_image_files)
+            if isinstance(processed_elements, list):
+                elements.extend(processed_elements)
+            else:
+                elements.append(Paragraph(processed_elements, styles['CustomHeading2']))
             elements.append(Spacer(1, 0.2*inch))
         elif line.startswith('### '):
             if in_list:
@@ -173,21 +264,57 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
                 list_items = []
                 in_list = False
             text = line[4:].strip()
-            elements.append(Paragraph(text, styles['CustomHeading3']))
+            processed_elements = format_inline_markdown(text, styles, temp_image_files)
+            if isinstance(processed_elements, list):
+                elements.extend(processed_elements)
+            else:
+                elements.append(Paragraph(processed_elements, styles['CustomHeading3']))
             elements.append(Spacer(1, 0.15*inch))
         # Handle lists
         elif line.strip().startswith('- ') or line.strip().startswith('* '):
             text = line.strip()[2:].strip()
-            text = format_inline_markdown(text)
-            list_items.append(Paragraph(f"• {text}", styles['CustomBody']))
+            processed_elements = format_inline_markdown(text, styles, temp_image_files)
+            if isinstance(processed_elements, list):
+                # If there are images, add them with proper bullet handling
+                first_text_added = False
+                for elem in processed_elements:
+                    if isinstance(elem, Image):
+                        list_items.append(elem)
+                    elif isinstance(elem, Paragraph):
+                        # Add bullet to the first text paragraph only
+                        if not first_text_added:
+                            # Extract text and prepend bullet
+                            elem_text = elem.text if hasattr(elem, 'text') else str(elem)
+                            list_items.append(Paragraph(f"• {elem_text}", elem.style))
+                            first_text_added = True
+                        else:
+                            list_items.append(elem)
+            else:
+                list_items.append(Paragraph(f"• {processed_elements}", styles['CustomBody']))
             in_list = True
         elif re.match(r'^\d+\.\s', line.strip()):
             # Numbered list (supports any number)
             match = re.match(r'^(\d+)\.\s+(.+)', line.strip())
             if match:
                 num, text = match.groups()
-                text = format_inline_markdown(text)
-                list_items.append(Paragraph(f"{num}. {text}", styles['CustomBody']))
+                processed_elements = format_inline_markdown(text, styles, temp_image_files)
+                if isinstance(processed_elements, list):
+                    # If there are images, add them with proper numbering handling
+                    first_text_added = False
+                    for elem in processed_elements:
+                        if isinstance(elem, Image):
+                            list_items.append(elem)
+                        elif isinstance(elem, Paragraph):
+                            # Add number to the first text paragraph only
+                            if not first_text_added:
+                                # Extract text and prepend number
+                                elem_text = elem.text if hasattr(elem, 'text') else str(elem)
+                                list_items.append(Paragraph(f"{num}. {elem_text}", elem.style))
+                                first_text_added = True
+                            else:
+                                list_items.append(elem)
+                else:
+                    list_items.append(Paragraph(f"{num}. {processed_elements}", styles['CustomBody']))
                 in_list = True
         # Handle horizontal rules
         elif line.strip() in ['---', '***', '___']:
@@ -211,9 +338,12 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
                 elements.extend(list_items)
                 list_items = []
                 in_list = False
-            text = format_inline_markdown(line)
-            if text.strip():
-                elements.append(Paragraph(text, styles['CustomBody']))
+            processed_elements = format_inline_markdown(line, styles, temp_image_files)
+            if isinstance(processed_elements, list):
+                # Mix of text and images - add them all
+                elements.extend(processed_elements)
+            elif processed_elements and processed_elements.strip():
+                elements.append(Paragraph(processed_elements, styles['CustomBody']))
         
         i += 1
     
@@ -221,24 +351,116 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
     if in_list:
         elements.extend(list_items)
     
-    return elements
+    return elements, temp_image_files
 
 
-def format_inline_markdown(text: str) -> str:
+def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str:
     """
     Format inline markdown elements like bold, italic, code, and LaTeX.
     Converts to ReportLab XML markup.
+    LaTeX formulas are converted to images and inserted at the correct position.
+    
+    Args:
+        text: The text to format
+        styles: ReportLab styles (optional, needed for complex formatting)
+        temp_image_files: List to track temporary image files for cleanup
+    
+    Returns:
+        Either a string with XML markup, or a list of flowables if images are present
     
     Note: ReportLab's Paragraph class handles XML-like markup, so we don't
     escape angle brackets for bold/italic tags that we intentionally add.
     """
+    if temp_image_files is None:
+        temp_image_files = []
+    
     # First, escape only ampersands in user content (< and > are OK for our XML tags)
     text = text.replace('&', '&amp;')
     
-    # Handle LaTeX inline math $...$ (convert to italic)
-    # Use non-greedy match and handle single $ expressions
-    text = re.sub(r'\$([^$]+?)\$', r'<i>\1</i>', text)
+    # Check if text contains LaTeX formulas
+    latex_pattern = r'\$([^$]+?)\$'
+    has_latex = re.search(latex_pattern, text)
     
+    if has_latex:
+        # Split text by LaTeX formulas and create a mix of text and images
+        parts = []
+        last_end = 0
+        
+        for match in re.finditer(latex_pattern, text):
+            # Add text before the formula
+            before_text = text[last_end:match.start()]
+            if before_text:
+                # Apply markdown formatting to the text part
+                formatted_text = apply_markdown_formatting(before_text)
+                parts.append(('text', formatted_text))
+            
+            # Render LaTeX formula as image
+            latex_formula = match.group(1)
+            image_path = render_latex_to_image(latex_formula, inline=True)
+            
+            if image_path:
+                temp_image_files.append(image_path)
+                # Store both image path and formula for fallback
+                parts.append(('image', image_path, latex_formula))
+            else:
+                # Fallback to italic if image rendering fails
+                parts.append(('text', f'<i>{latex_formula}</i>'))
+            
+            last_end = match.end()
+        
+        # Add remaining text
+        if last_end < len(text):
+            remaining_text = text[last_end:]
+            formatted_text = apply_markdown_formatting(remaining_text)
+            parts.append(('text', formatted_text))
+        
+        # If we have images, we need to return a list of flowables
+        if any(p[0] == 'image' for p in parts):
+            if styles is None:
+                # Can't create flowables without styles, return text only with formulas in italic
+                result = []
+                for p in parts:
+                    if p[0] == 'text':
+                        result.append(p[1])
+                    else:  # image
+                        # Use the formula text (p[2]) for fallback
+                        result.append(f'<i>{p[2]}</i>')
+                return ''.join(result)
+            
+            flowables = []
+            for p in parts:
+                part_type = p[0]
+                if part_type == 'text':
+                    part_value = p[1]
+                    if part_value.strip():
+                        flowables.append(Paragraph(part_value, styles['CustomBody']))
+                elif part_type == 'image':
+                    part_value = p[1]  # image path
+                    try:
+                        # Create inline image with appropriate size
+                        img = Image(part_value)
+                        # Scale image to fit inline (roughly text height)
+                        img.drawHeight = 0.2 * inch
+                        img.drawWidth = img.drawHeight * (img.imageWidth / float(img.imageHeight))
+                        flowables.append(img)
+                        logger.debug(f"Added image flowable: {part_value}")
+                    except Exception as e:
+                        logger.error(f"Failed to create image from {part_value}: {str(e)}")
+            
+            return flowables if flowables else ''
+        else:
+            # No images, just return formatted text
+            return ''.join(p[1] for p in parts)
+    else:
+        # No LaTeX formulas, just apply markdown formatting
+        return apply_markdown_formatting(text)
+
+
+def apply_markdown_formatting(text: str) -> str:
+    """
+    Apply markdown formatting (bold, italic, code) to text.
+    This is separated from format_inline_markdown to handle LaTeX formulas properly.
+    """
     # Handle bold + italic first (before individual patterns)
     # ***text*** or ___text___
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
@@ -277,10 +499,12 @@ class ExportService:
     @staticmethod
     async def export_to_pdf(content: str, title: str, watermark: bool = True) -> io.BytesIO:
         """
-        Export content as PDF with markdown and basic LaTeX support using ReportLab.
+        Export content as PDF with markdown and LaTeX support using ReportLab.
+        LaTeX formulas are rendered as images using matplotlib.
         
         Note: ReportLab has limited emoji support. Complex emojis may not render correctly.
         """
+        temp_image_files = []
         try:
             output = io.BytesIO()
             
@@ -306,7 +530,7 @@ class ExportService:
             story.append(Spacer(1, 0.3*inch))
             
             # Parse markdown content and add to story
-            content_elements = parse_markdown_to_reportlab(content, styles)
+            content_elements, temp_image_files = parse_markdown_to_reportlab(content, styles)
             story.extend(content_elements)
             
             # Build PDF with custom canvas for watermark
@@ -321,12 +545,21 @@ class ExportService:
                 doc.build(story)
             
             output.seek(0)
-            logger.info(f"PDF generated successfully for '{title}' using ReportLab")
+            logger.info(f"PDF generated successfully for '{title}' using ReportLab with LaTeX support")
             return output
             
         except Exception as e:
             logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
             raise
+        finally:
+            # Clean up temporary image files
+            for temp_file in temp_image_files:
+                try:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                        logger.debug(f"Cleaned up temporary LaTeX image: {temp_file}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temporary file {temp_file}: {str(e)}")
 
     @staticmethod
     def export_to_docx(content: str, title: str) -> io.BytesIO:
