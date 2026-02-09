@@ -40,5 +40,6 @@ backend/vector_store/
 *.pkl
 *.index
 backend/test_changes.py
+*.backup
 
 backend/backend

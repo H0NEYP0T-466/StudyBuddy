@@ -411,7 +411,7 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
             flowables = []
             for part_type, part_value in parts:
                 if part_type == 'text' and part_value.strip():
-                    flowables.append(Paragraph(part_value, styles.get('CustomBody', styles['BodyText'])))
+                    flowables.append(Paragraph(part_value, styles['CustomBody']))
                 elif part_type == 'image':
                     try:
                         # Create inline image with appropriate size
@@ -420,6 +420,7 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
                         img.drawHeight = 0.2 * inch
                         img.drawWidth = img.drawHeight * (img.imageWidth / float(img.imageHeight))
                         flowables.append(img)
+                        logger.debug(f"Added image flowable: {part_value}")
                     except Exception as e:
                         logger.error(f"Failed to create image from {part_value}: {str(e)}")
             
