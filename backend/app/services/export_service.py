@@ -275,12 +275,20 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
             text = line.strip()[2:].strip()
             processed_elements = format_inline_markdown(text, styles, temp_image_files)
             if isinstance(processed_elements, list):
-                # If there are images, add them separately
+                # If there are images, add them with proper bullet handling
+                first_text_added = False
                 for elem in processed_elements:
                     if isinstance(elem, Image):
                         list_items.append(elem)
-                    else:
-                        list_items.append(Paragraph(f"• {elem}", styles['CustomBody']))
+                    elif isinstance(elem, Paragraph):
+                        # Add bullet to the first text paragraph only
+                        if not first_text_added:
+                            # Extract text and prepend bullet
+                            elem_text = elem.text if hasattr(elem, 'text') else str(elem)
+                            list_items.append(Paragraph(f"• {elem_text}", elem.style))
+                            first_text_added = True
+                        else:
+                            list_items.append(elem)
             else:
                 list_items.append(Paragraph(f"• {processed_elements}", styles['CustomBody']))
             in_list = True
@@ -291,12 +299,20 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
                 num, text = match.groups()
                 processed_elements = format_inline_markdown(text, styles, temp_image_files)
                 if isinstance(processed_elements, list):
-                    # If there are images, add them separately
+                    # If there are images, add them with proper numbering handling
+                    first_text_added = False
                     for elem in processed_elements:
                         if isinstance(elem, Image):
                             list_items.append(elem)
-                        else:
-                            list_items.append(Paragraph(f"{num}. {elem}", styles['CustomBody']))
+                        elif isinstance(elem, Paragraph):
+                            # Add number to the first text paragraph only
+                            if not first_text_added:
+                                # Extract text and prepend number
+                                elem_text = elem.text if hasattr(elem, 'text') else str(elem)
+                                list_items.append(Paragraph(f"{num}. {elem_text}", elem.style))
+                                first_text_added = True
+                            else:
+                                list_items.append(elem)
                 else:
                     list_items.append(Paragraph(f"{num}. {processed_elements}", styles['CustomBody']))
                 in_list = True
@@ -335,11 +351,6 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
     if in_list:
         elements.extend(list_items)
     
-    # Store temp files for later cleanup
-    if temp_image_files:
-        elements.append(Spacer(0, 0))  # Dummy element to store cleanup info
-        # We'll handle cleanup in the export function
-        
     return elements, temp_image_files
 
 
@@ -389,7 +400,8 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
             
             if image_path:
                 temp_image_files.append(image_path)
-                parts.append(('image', image_path))
+                # Store both image path and formula for fallback
+                parts.append(('image', image_path, latex_formula))
             else:
                 # Fallback to italic if image rendering fails
                 parts.append(('text', f'<i>{latex_formula}</i>'))
@@ -405,14 +417,25 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
         # If we have images, we need to return a list of flowables
         if any(p[0] == 'image' for p in parts):
             if styles is None:
-                # Can't create flowables without styles, return text only
-                return ''.join(p[1] if p[0] == 'text' else f'<i>{p[1]}</i>' for p in parts)
+                # Can't create flowables without styles, return text only with formulas in italic
+                result = []
+                for p in parts:
+                    if p[0] == 'text':
+                        result.append(p[1])
+                    else:  # image
+                        # Use the formula text (p[2]) for fallback
+                        result.append(f'<i>{p[2]}</i>')
+                return ''.join(result)
             
             flowables = []
-            for part_type, part_value in parts:
-                if part_type == 'text' and part_value.strip():
-                    flowables.append(Paragraph(part_value, styles['CustomBody']))
+            for p in parts:
+                part_type = p[0]
+                if part_type == 'text':
+                    part_value = p[1]
+                    if part_value.strip():
+                        flowables.append(Paragraph(part_value, styles['CustomBody']))
                 elif part_type == 'image':
+                    part_value = p[1]  # image path
                     try:
                         # Create inline image with appropriate size
                         img = Image(part_value)
