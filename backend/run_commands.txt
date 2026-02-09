@@ -1,8 +1,2 @@
 venv\Scripts\activate
-python start_server.py
-
-# Alternative (if the above doesn't work):
-# python -X utf8 start_server.py
-
-# Old method (NOT recommended on Windows with Playwright):
-# uvicorn main:app --reload --port 8003
+uvicorn main:app --reload --port 8003
