@@ -41,7 +41,7 @@ backend/vector_store/
 *.index
 backend/test_changes.py
 *.backup
-backend/data/
+backend/data/history.txt
 backend/data
 
 backend/backend
