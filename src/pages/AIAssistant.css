@@ -8,8 +8,7 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  padding: var(--spacing-lg);
+  bottom: 0;;
   background: var(--bg-primary);
   z-index: 10;
 }
@@ -42,9 +41,9 @@
 /* Minimalist Header */
 .assistant-header-minimal {
   display: flex;
+  align-items: flex-end;
   gap: var(--spacing-sm);
-  justify-content: flex-end;
-  padding: var(--spacing-md) 0;
+ 
 }
 
 .icon-button {
@@ -323,8 +322,9 @@
   display: flex;
   gap: var(--spacing-md);
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-lg);
+
   border-bottom: 1px solid var(--border-color);
+  
 }
 
 .model-select-compact {

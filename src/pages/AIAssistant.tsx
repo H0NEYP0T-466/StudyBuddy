@@ -225,26 +225,7 @@ const AIAssistant = () => {
       )}
       
       {/* Minimalist Header */}
-      <div className="assistant-header-minimal">
-        <button
-          onClick={() => setShowContextPanel(!showContextPanel)}
-          className={`icon-button ${showContextPanel ? 'active' : ''}`}
-          title="Show Notes"
-        >
-          📚
-        </button>
-        <button onClick={clearChat} className="icon-button" title="Clear Chat">
-          🗑️
-        </button>
-        <button 
-          onClick={() => setShowExportModal(true)} 
-          className="icon-button"
-          disabled={messages.length === 0}
-          title="Export Conversation"
-        >
-          💾
-        </button>
-      </div>
+     
 
       <div className="assistant-layout">
         {/* Main Chat Area */}
@@ -349,6 +330,26 @@ const AIAssistant = () => {
                   {selectedFolders.length} folder{selectedFolders.length !== 1 ? 's' : ''} selected
                 </span>
               )}
+               <div className="assistant-header-minimal">
+        <button
+          onClick={() => setShowContextPanel(!showContextPanel)}
+          className={`icon-button ${showContextPanel ? 'active' : ''}`}
+          title="Show Notes"
+        >
+          📚
+        </button>
+        <button onClick={clearChat} className="icon-button" title="Clear Chat">
+          🗑️
+        </button>
+        <button 
+          onClick={() => setShowExportModal(true)} 
+          className="icon-button"
+          disabled={messages.length === 0}
+          title="Export Conversation"
+        >
+          💾
+        </button>
+      </div>
             </div>
 
             {/* File Upload Preview */}

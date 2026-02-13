@@ -17,7 +17,7 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <h2>Pen2PDF v2.0</h2>
+        <h2>StudyBuddy</h2>
       </div>
       <div className="navbar-links">
         {navItems.map((item) => (
