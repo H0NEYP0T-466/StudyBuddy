@@ -13,6 +13,8 @@ import './AIAssistant.css';
 const MAX_CONVERSATION_HISTORY = 10;
 // Number of recent messages to load from database on mount
 const CHAT_HISTORY_LIMIT = 15;
+// Number of characters to show in note preview
+const NOTE_PREVIEW_LENGTH = 60;
 
 const AIAssistant = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -488,8 +490,8 @@ const AIAssistant = () => {
                       <div className="note-content">
                         <span className="note-title">{note.title}</span>
                         <span className="note-preview">
-                          {note.content.substring(0, 60)}
-                          {note.content.length > 60 ? '...' : ''}
+                          {note.content.substring(0, NOTE_PREVIEW_LENGTH)}
+                          {note.content.length > NOTE_PREVIEW_LENGTH ? '...' : ''}
                         </span>
                       </div>
                     </label>

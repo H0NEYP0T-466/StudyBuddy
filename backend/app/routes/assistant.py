@@ -121,8 +121,8 @@ async def chat_with_assistant(
                             note = await db.notes.find_one({"_id": ObjectId(note_id)})
                             if note:
                                 selected_notes.append(note)
-                        except:
-                            logger.warning(f"Invalid note ID: {note_id}")
+                        except Exception as e:
+                            logger.warning(f"Invalid note ID {note_id}: {str(e)}")
                     
                     if selected_notes:
                         notes_context = "\n\nSelected notes for context:\n"
