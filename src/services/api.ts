@@ -22,19 +22,19 @@ const api = axios.create({
 });
 
 // Folders
-export const getFolders = () => api.get<Folder[]>('/api/folders');
+export const getFolders = () => api.get<Folder[]>('/api/folders/');
 export const createFolder = (data: { name: string; color: string }) => 
-  api.post<Folder>('/api/folders', data);
+  api.post<Folder>('/api/folders/', data);
 export const updateFolder = (id: string, data: { name?: string; color?: string }) => 
   api.put<Folder>(`/api/folders/${id}`, data);
 export const deleteFolder = (id: string) => api.delete(`/api/folders/${id}`);
 
 // Notes
 export const getNotes = (folderId?: string) => 
-  api.get<Note[]>('/api/notes', { params: { folder_id: folderId } });
+  api.get<Note[]>('/api/notes/', { params: { folder_id: folderId } });
 export const getNoteById = (id: string) => api.get<Note>(`/api/notes/${id}`);
 export const createNote = (data: { title: string; content: string; folder_id?: string }) => 
-  api.post<Note>('/api/notes', data);
+  api.post<Note>('/api/notes/', data);
 export const updateNote = (id: string, data: { title?: string; content?: string; folder_id?: string }) => 
   api.put<Note>(`/api/notes/${id}`, data);
 export const deleteNote = (id: string) => api.delete(`/api/notes/${id}`);
@@ -46,7 +46,7 @@ export const searchNotes = (query: string) =>
   api.get<Note[]>('/api/notes/search', { params: { q: query } });
 
 // Timetable
-export const getTimetable = () => api.get<TimetableEntry[]>('/api/timetable');
+export const getTimetable = () => api.get<TimetableEntry[]>('/api/timetable/');
 export const createTimetableEntry = (data: {
   day: string;
   start_time: string;
@@ -54,7 +54,7 @@ export const createTimetableEntry = (data: {
   subject: string;
   type: string;
   location: string;
-}) => api.post<TimetableEntry>('/api/timetable', data);
+}) => api.post<TimetableEntry>('/api/timetable/', data);
 export const updateTimetableEntry = (id: number, data: Partial<TimetableEntry>) => 
   api.put<TimetableEntry>(`/api/timetable/${id}`, data);
 export const deleteTimetableEntry = (id: number) => api.delete(`/api/timetable/${id}`);
@@ -64,12 +64,12 @@ export const importTimetable = (formData: FormData) =>
   });
 
 // Todos
-export const getTodos = () => api.get<Todo[]>('/api/todos');
+export const getTodos = () => api.get<Todo[]>('/api/todos/');
 export const createTodo = (data: { 
   title: string; 
   description?: string; 
   due_date?: string | null;
-}) => api.post<Todo>('/api/todos', data);
+}) => api.post<Todo>('/api/todos/', data);
 export const updateTodo = (id: number, data: Partial<Todo>) => 
   api.put<Todo>(`/api/todos/${id}`, data);
 export const deleteTodo = (id: number) => api.delete(`/api/todos/${id}`);
@@ -94,6 +94,11 @@ export const chatWithAssistant = (data: AssistantChatRequest) => {
   // Add folder context notes if provided
   if (data.folder_ids && data.folder_ids.length > 0) {
     formData.append('folder_ids', JSON.stringify(data.folder_ids));
+  }
+  
+  // Add selected note IDs if provided
+  if (data.note_ids && data.note_ids.length > 0) {
+    formData.append('note_ids', JSON.stringify(data.note_ids));
   }
   
   return api.post<AssistantChatResponse>('/api/assistant/chat', formData, {

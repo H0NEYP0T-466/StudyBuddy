@@ -49,6 +49,7 @@ async def chat_with_assistant(
     model: str = Form(...),
     chat_history: Optional[str] = Form(None),
     context_notes: Optional[str] = Form(None),
+    note_ids: Optional[str] = Form(None),
     use_rag: bool = Form(True),
     isolate_message: bool = Form(False)
 ):
@@ -93,6 +94,8 @@ async def chat_with_assistant(
                 for i, result in enumerate(results, 1):
                     rag_context += f"\n[Source {i}: {result['filename']}]\n{result['chunk']}\n"
                     sources.append({
+                        "id": f"rag_{i}",  # Add id for frontend
+                        "title": result['filename'],  # Use filename as title
                         "filename": result['filename'],
                         "chunk": result['chunk'][:200] + "..." if len(result['chunk']) > 200 else result['chunk'],
                         "similarity": result['similarity']
@@ -103,11 +106,44 @@ async def chat_with_assistant(
             else:
                 logger.info("No relevant RAG context found")
         
-        # Add context notes
+        # Add context from selected notes
         notes_context = ""
+        if note_ids:
+            try:
+                from bson import ObjectId
+                note_id_list = json.loads(note_ids)
+                if note_id_list:
+                    logger.info(f"Fetching {len(note_id_list)} selected notes for context...")
+                    db = get_database()
+                    selected_notes = []
+                    for note_id in note_id_list:
+                        try:
+                            note = await db.notes.find_one({"_id": ObjectId(note_id)})
+                            if note:
+                                selected_notes.append(note)
+                        except Exception as e:
+                            logger.warning(f"Invalid note ID {note_id}: {str(e)}")
+                    
+                    if selected_notes:
+                        notes_context = "\n\nSelected notes for context:\n"
+                        for note in selected_notes:
+                            notes_context += f"\n[Note: {note.get('title', 'Untitled')}]\n{note.get('content', '')}\n"
+                            # Add to sources for display
+                            sources.append({
+                                "id": str(note["_id"]),
+                                "title": note.get('title', 'Untitled'),
+                                "content": note.get('content', ''),
+                                "chunk": note.get('content', '')[:200] + "..." if len(note.get('content', '')) > 200 else note.get('content', ''),
+                                "type": "note"  # Mark as a note source
+                            })
+                        logger.success(f"Added {len(selected_notes)} notes as context and sources")
+            except Exception as e:
+                logger.warning(f"Failed to load selected notes: {str(e)}")
+        
+        # Legacy context_notes support
         if context_notes:
-            notes_context = f"\n\nAdditional context notes:\n{context_notes}\n"
-            logger.info(f"Notes context added: {len(context_notes)} characters")
+            notes_context += f"\n\nAdditional context notes:\n{context_notes}\n"
+            logger.info(f"Additional notes context added: {len(context_notes)} characters")
         
         # Build final prompt
         final_message = message
