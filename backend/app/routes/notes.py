@@ -169,8 +169,9 @@ async def generate_notes(
     model: str = Form(...),
     files: List[UploadFile] = File(None)
 ):
-    """Generate notes from uploaded files using AI."""
-    logger.info(f"Generating notes using model: {model}")
+    """Generate notes from uploaded files using AI with 2-phase approach."""
+    logger.info(f"=== NOTES GENERATION STARTED ===")
+    logger.info(f"Requested model: {model}")
     
     # Save uploaded files temporarily
     temp_files = []
@@ -198,29 +199,61 @@ async def generate_notes(
             raise HTTPException(status_code=400, detail="No text could be extracted from files")
         
         logger.info(f"Total extracted text: {len(extracted_text)} characters")
+        logger.info(f"[PHASE 1] Starting Gemini note generation...")
         
-        # Generate notes based on model
+        # PHASE 1: Generate simple notes using Gemini
+        # The 2-phase approach always uses Gemini for Phase 1 and LongCat for Phase 2
         if model.startswith("gemini"):
-            logger.info(f"Generating notes with Gemini: {model}")
-            notes = await gemini_service.generate_notes(
-                extracted_text, 
-                model,
-                temp_files if files else None
-            )
-            logger.success(f"Gemini notes generated ({len(notes)} characters)")
-        elif model.startswith("longcat"):
-            logger.info(f"Generating notes with LongCat: {model}")
-            notes = await longcat_service.generate_notes(extracted_text, model)
-            logger.success(f"LongCat notes generated ({len(notes)} characters)")
+            gemini_model = model
         else:
-            logger.error(f"Model not supported: {model}")
-            notes = "Model not supported for notes generation"
+            # Default to gemini-2.5-flash for 2-phase generation
+            gemini_model = "gemini-2.5-flash"
+            logger.info(f"Note: 2-phase generation always uses Gemini + LongCat. Using default: {gemini_model}")
+        
+        logger.info(f"[PHASE 1] Using Gemini model: {gemini_model}")
+        logger.debug(f"[PHASE 1] Gemini Input (first 500 chars): {extracted_text[:500]}...")
+        
+        gemini_notes = await gemini_service.generate_notes(
+            extracted_text, 
+            gemini_model,
+            temp_files if files else None
+        )
+        
+        logger.success(f"[PHASE 1] Gemini notes generated ({len(gemini_notes)} characters)")
+        logger.debug(f"[PHASE 1] Gemini Output (first 1000 chars): {gemini_notes[:1000]}...")
+        logger.info("="*80)
+        logger.info("[PHASE 1] GEMINI OUTPUT (FULL):")
+        logger.info("="*80)
+        logger.info(gemini_notes)
+        logger.info("="*80)
+        
+        # PHASE 2: Format notes using LongCat
+        logger.info(f"[PHASE 2] Starting LongCat formatting...")
+        longcat_model = "longcat-flash-lite"
+        logger.info(f"[PHASE 2] Using LongCat model: {longcat_model}")
+        logger.debug(f"[PHASE 2] LongCat Input (Gemini output, first 1000 chars): {gemini_notes[:1000]}...")
+        
+        formatted_notes = await longcat_service.format_notes(gemini_notes, longcat_model)
+        
+        logger.success(f"[PHASE 2] LongCat formatted notes generated ({len(formatted_notes)} characters)")
+        logger.debug(f"[PHASE 2] LongCat Output (first 1000 chars): {formatted_notes[:1000]}...")
+        logger.info("="*80)
+        logger.info("[PHASE 2] LONGCAT OUTPUT (FULL):")
+        logger.info("="*80)
+        logger.info(formatted_notes)
+        logger.info("="*80)
+        
+        logger.success(f"=== NOTES GENERATION COMPLETED SUCCESSFULLY ===")
         
         return {
             "note": {
-                "content": notes
+                "content": formatted_notes
             },
-            "model_used": model
+            "model_used": f"{gemini_model} + {longcat_model}",
+            "generation_phases": {
+                "phase1_model": gemini_model,
+                "phase2_model": longcat_model
+            }
         }
         
     except Exception as e:
