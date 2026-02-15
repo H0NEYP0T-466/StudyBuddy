@@ -94,6 +94,8 @@ async def chat_with_assistant(
                 for i, result in enumerate(results, 1):
                     rag_context += f"\n[Source {i}: {result['filename']}]\n{result['chunk']}\n"
                     sources.append({
+                        "id": f"rag_{i}",  # Add id for frontend
+                        "title": result['filename'],  # Use filename as title
                         "filename": result['filename'],
                         "chunk": result['chunk'][:200] + "..." if len(result['chunk']) > 200 else result['chunk'],
                         "similarity": result['similarity']
@@ -126,7 +128,15 @@ async def chat_with_assistant(
                         notes_context = "\n\nSelected notes for context:\n"
                         for note in selected_notes:
                             notes_context += f"\n[Note: {note.get('title', 'Untitled')}]\n{note.get('content', '')}\n"
-                        logger.success(f"Added {len(selected_notes)} notes as context")
+                            # Add to sources for display
+                            sources.append({
+                                "id": str(note["_id"]),
+                                "title": note.get('title', 'Untitled'),
+                                "content": note.get('content', ''),
+                                "chunk": note.get('content', '')[:200] + "..." if len(note.get('content', '')) > 200 else note.get('content', ''),
+                                "type": "note"  # Mark as a note source
+                            })
+                        logger.success(f"Added {len(selected_notes)} notes as context and sources")
             except Exception as e:
                 logger.warning(f"Failed to load selected notes: {str(e)}")
         
