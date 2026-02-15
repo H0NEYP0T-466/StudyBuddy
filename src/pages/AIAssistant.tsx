@@ -26,6 +26,8 @@ const AIAssistant = () => {
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [contextNotes, setContextNotes] = useState<Note[]>([]);
+  const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
+  const [noteSearchQuery, setNoteSearchQuery] = useState('');
   const [sources, setSources] = useState<Note[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -55,6 +57,9 @@ const AIAssistant = () => {
   useEffect(() => {
     if (selectedFolders.length > 0) {
       loadContextNotes();
+    } else {
+      setContextNotes([]);
+      setSelectedNotes([]);
     }
   }, [selectedFolders, loadContextNotes]);
 
@@ -107,6 +112,7 @@ const AIAssistant = () => {
         model,
         use_rag: useRAG,
         folder_ids: useRAG ? selectedFolders : undefined,
+        note_ids: selectedNotes.length > 0 ? selectedNotes : undefined,
         isolate_message: isolateMessage,
       });
 
@@ -144,6 +150,34 @@ const AIAssistant = () => {
       prev.includes(folderId)
         ? prev.filter((id) => id !== folderId)
         : [...prev, folderId]
+    );
+  };
+
+  const toggleNote = (noteId: string) => {
+    setSelectedNotes((prev) =>
+      prev.includes(noteId)
+        ? prev.filter((id) => id !== noteId)
+        : [...prev, noteId]
+    );
+  };
+
+  const selectAllNotes = () => {
+    const filteredNotes = getFilteredNotes();
+    setSelectedNotes(filteredNotes.map(note => note.id));
+  };
+
+  const deselectAllNotes = () => {
+    setSelectedNotes([]);
+  };
+
+  const getFilteredNotes = () => {
+    if (!noteSearchQuery.trim()) {
+      return contextNotes;
+    }
+    const query = noteSearchQuery.toLowerCase();
+    return contextNotes.filter(note =>
+      note.title.toLowerCase().includes(query) ||
+      note.content.toLowerCase().includes(query)
     );
   };
 
@@ -327,7 +361,7 @@ const AIAssistant = () => {
 
               {useRAG && (
                 <span className="info-text">
-                  {selectedFolders.length} folder{selectedFolders.length !== 1 ? 's' : ''} selected
+                  {selectedFolders.length} folder{selectedFolders.length !== 1 ? 's' : ''}, {selectedNotes.length} note{selectedNotes.length !== 1 ? 's' : ''} selected
                 </span>
               )}
                <div className="assistant-header-minimal">
@@ -402,7 +436,7 @@ const AIAssistant = () => {
           <div className="context-panel-new">
             <h3>📚 Notes Context</h3>
             <p className="panel-description">
-              Select folders to include notes in conversation
+              Step 1: Select subjects (folders), then select specific notes
             </p>
             
             <div className="folders-grid">
@@ -421,17 +455,47 @@ const AIAssistant = () => {
 
             {contextNotes.length > 0 && (
               <div className="notes-preview">
-                <h4>📄 Available Notes ({contextNotes.length})</h4>
-                <div className="notes-list">
-                  {contextNotes.slice(0, 10).map((note) => (
-                    <div key={note.id} className="note-item">
-                      {note.title}
-                    </div>
+                <div className="notes-header">
+                  <h4>📄 Select Notes ({selectedNotes.length}/{contextNotes.length} selected)</h4>
+                  <div className="notes-actions">
+                    <button onClick={selectAllNotes} className="note-action-btn">
+                      ✓ Select All
+                    </button>
+                    <button onClick={deselectAllNotes} className="note-action-btn">
+                      ✗ Clear
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="notes-search">
+                  <input
+                    type="text"
+                    placeholder="🔍 Search notes..."
+                    value={noteSearchQuery}
+                    onChange={(e) => setNoteSearchQuery(e.target.value)}
+                    className="note-search-input"
+                  />
+                </div>
+
+                <div className="notes-list-selectable">
+                  {getFilteredNotes().map((note) => (
+                    <label key={note.id} className="note-item-selectable">
+                      <input
+                        type="checkbox"
+                        checked={selectedNotes.includes(note.id)}
+                        onChange={() => toggleNote(note.id)}
+                      />
+                      <div className="note-content">
+                        <span className="note-title">{note.title}</span>
+                        <span className="note-preview">
+                          {note.content.substring(0, 60)}
+                          {note.content.length > 60 ? '...' : ''}
+                        </span>
+                      </div>
+                    </label>
                   ))}
-                  {contextNotes.length > 10 && (
-                    <div className="note-item more">
-                      +{contextNotes.length - 10} more
-                    </div>
+                  {getFilteredNotes().length === 0 && (
+                    <div className="no-notes">No notes found matching your search</div>
                   )}
                 </div>
               </div>

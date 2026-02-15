@@ -96,6 +96,11 @@ export const chatWithAssistant = (data: AssistantChatRequest) => {
     formData.append('folder_ids', JSON.stringify(data.folder_ids));
   }
   
+  // Add selected note IDs if provided
+  if (data.note_ids && data.note_ids.length > 0) {
+    formData.append('note_ids', JSON.stringify(data.note_ids));
+  }
+  
   return api.post<AssistantChatResponse>('/api/assistant/chat', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

@@ -61,6 +61,7 @@ export interface AssistantChatRequest {
   model?: string;
   use_rag?: boolean;
   folder_ids?: string[];
+  note_ids?: string[];
   isolate_message?: boolean;
 }
 

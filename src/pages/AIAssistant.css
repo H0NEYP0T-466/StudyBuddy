@@ -718,3 +718,109 @@
     margin-left: 0;
   }
 }
+
+/* Notes Selection Styles */
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.notes-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.note-action-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.note-action-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.notes-search {
+  margin-bottom: var(--spacing-md);
+}
+
+.note-search-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.note-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.1);
+}
+
+.notes-list-selectable {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.note-item-selectable {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.note-item-selectable:last-child {
+  border-bottom: none;
+}
+
+.note-item-selectable:hover {
+  background: var(--bg-primary);
+}
+
+.note-item-selectable input[type="checkbox"] {
+  margin-right: var(--spacing-sm);
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.note-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.note-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.note-preview {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.no-notes {
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}
