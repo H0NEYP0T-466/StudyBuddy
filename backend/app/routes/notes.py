@@ -202,7 +202,14 @@ async def generate_notes(
         logger.info(f"[PHASE 1] Starting Gemini note generation...")
         
         # PHASE 1: Generate simple notes using Gemini
-        gemini_model = model if model.startswith("gemini") else "gemini-2.5-flash"
+        # The 2-phase approach always uses Gemini for Phase 1 and LongCat for Phase 2
+        if model.startswith("gemini"):
+            gemini_model = model
+        else:
+            # Default to gemini-2.5-flash for 2-phase generation
+            gemini_model = "gemini-2.5-flash"
+            logger.info(f"Note: 2-phase generation always uses Gemini + LongCat. Using default: {gemini_model}")
+        
         logger.info(f"[PHASE 1] Using Gemini model: {gemini_model}")
         logger.debug(f"[PHASE 1] Gemini Input (first 500 chars): {extracted_text[:500]}...")
         
