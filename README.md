@@ -234,7 +234,7 @@ StudyBuddy/
 - **Google Generative AI**: Gemini models for text and multimodal processing
 - **OpenAI**: GPT models via GitHub Models
 - **Anthropic**: Claude models via GitHub Models
-- **LangCat**: Fast text generation models
+- **LongCat**: Fast text generation models
 
 **RAG (Retrieval Augmented Generation):**
 - **FAISS**: Facebook AI Similarity Search for efficient vector retrieval
