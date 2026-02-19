@@ -53,7 +53,7 @@ A complete productivity suite for students with AI-powered document processing, 
 ## ✨ Features
 
 ### 🤖 AI-Powered Tools
-- **Pen2PDF Feature**: Extract text from PDFs, PowerPoints, and images using AI
+- **Pen2PDF**: Extract text from PDFs, PowerPoints, and images using AI
 - **Notes Generator**: AI-generated structured study notes from documents
 - **Isabella AI Assistant**: Intelligent chatbot with RAG (Retrieval Augmented Generation)
 - Multiple AI models supported: Gemini, LongCat, GitHub Models (GPT-4, Claude, Llama, etc.)
@@ -501,4 +501,4 @@ For information about reporting security vulnerabilities, please see our [Securi
 
 ---
 
-<p align="center">Made with love by HONEYPOT-466 ❤️</p>
+<p align="center">Made with love by H0NEYP0T-466 ❤️</p>
