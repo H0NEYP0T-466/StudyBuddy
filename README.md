@@ -1,6 +1,32 @@
 # Pen2PDF v2.0 🎓
 
+<p align="center">
+  <img src="https://img.shields.io/github/license/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/github/stars/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Stars">
+  <img src="https://img.shields.io/github/forks/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Forks">
+  <img src="https://img.shields.io/github/issues/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Issues">
+  <img src="https://img.shields.io/github/issues-pr/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Pull Requests">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/last-commit/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Last Commit">
+  <img src="https://img.shields.io/github/commit-activity/m/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Commit Activity">
+  <img src="https://img.shields.io/github/languages/top/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Top Language">
+  <img src="https://img.shields.io/github/languages/count/H0NEYP0T-466/StudyBuddy?style=for-the-badge" alt="Languages">
+</p>
+
 A complete productivity suite for students with AI-powered document processing, intelligent note-taking, timetable management, and more.
+
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-api-documentation">API Docs</a> •
+  <a href="https://github.com/H0NEYP0T-466/StudyBuddy/issues">Issues</a> •
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+---
 
 ## ✨ Features
 
@@ -147,9 +173,14 @@ StudyBuddy/
 └── public/
 ```
 
-## 🔧 Tech Stack
+## 🛠 Tech Stack
 
 ### Backend
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Google AI](https://img.shields.io/badge/Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)
+
 - **Framework**: FastAPI
 - **Database**: MongoDB with Motor (async)
 - **AI Models**: Google Gemini, LongCat, GitHub Models
@@ -157,11 +188,37 @@ StudyBuddy/
 - **File Processing**: PyPDF2, python-docx, python-pptx
 
 ### Frontend
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![React Router](https://img.shields.io/badge/React_Router-CA4245?style=for-the-badge&logo=react-router&logoColor=white)
+
 - **Framework**: React 19 + TypeScript
 - **Routing**: React Router v6
 - **Styling**: CSS Modules with CSS Variables
 - **Markdown**: react-markdown + KaTeX
 - **HTTP Client**: Axios
+
+### 📦 Dependencies
+
+#### Runtime Dependencies (Frontend)
+![react](https://img.shields.io/npm/v/react?style=for-the-badge&label=react&logo=react&color=61DAFB)
+![react-router-dom](https://img.shields.io/npm/v/react-router-dom?style=for-the-badge&label=react-router-dom&logo=react-router)
+![axios](https://img.shields.io/npm/v/axios?style=for-the-badge&label=axios&logo=axios)
+![katex](https://img.shields.io/npm/v/katex?style=for-the-badge&label=katex)
+![react-markdown](https://img.shields.io/npm/v/react-markdown?style=for-the-badge&label=react-markdown)
+
+#### Development Dependencies (Frontend)
+![typescript](https://img.shields.io/npm/v/typescript?style=for-the-badge&label=typescript&logo=typescript)
+![vite](https://img.shields.io/npm/v/vite?style=for-the-badge&label=vite&logo=vite)
+![eslint](https://img.shields.io/npm/v/eslint?style=for-the-badge&label=eslint&logo=eslint)
+
+#### Backend Dependencies (Python)
+![fastapi](https://img.shields.io/pypi/v/fastapi?style=for-the-badge&label=fastapi&logo=fastapi)
+![motor](https://img.shields.io/pypi/v/motor?style=for-the-badge&label=motor)
+![langchain](https://img.shields.io/pypi/v/langchain?style=for-the-badge&label=langchain)
+![faiss-cpu](https://img.shields.io/pypi/v/faiss-cpu?style=for-the-badge&label=faiss-cpu)
+![sentence-transformers](https://img.shields.io/pypi/v/sentence-transformers?style=for-the-badge&label=sentence-transformers)
 
 ## 📝 API Documentation
 
@@ -192,12 +249,14 @@ The RAG (Retrieval Augmented Generation) system:
 4. Uses FAISS for vector search
 5. Integrates with AI Assistant for context-aware responses
 
-## 🔐 Security
+## 🔐 Security Considerations
 
 - API keys stored in `.env` (not committed)
 - CORS configured for local development
 - Input validation on all endpoints
 - MongoDB connection with authentication support
+
+For detailed security information and vulnerability reporting, see [SECURITY.md](SECURITY.md).
 
 ## 📦 Build for Production
 
@@ -216,11 +275,21 @@ gunicorn backend.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8
 
 ## 🤝 Contributing
 
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+- How to fork and set up the project
+- Code style guidelines
+- Commit message format
+- Pull request process
+
 This is a student productivity project. Feel free to fork and customize for your needs!
 
-## 📄 License
+## 📜 License
 
-MIT License - feel free to use for personal or educational purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🛡 Security
+
+For information about reporting security vulnerabilities, please see our [Security Policy](SECURITY.md).
 
 ## 🐛 Known Issues
 
