@@ -15,16 +15,16 @@ We release patches for security vulnerabilities in the following versions:
 
 Instead, please report them responsibly using one of the following methods:
 
-### 1. GitHub Private Vulnerability Reporting
+### 1. GitHub Private Vulnerability Reporting (Preferred)
 
 Use GitHub's private vulnerability reporting feature:
 1. Go to the [Security tab](https://github.com/H0NEYP0T-466/StudyBuddy/security)
 2. Click "Report a vulnerability"
 3. Fill out the form with details
 
-### 2. Email
+### 2. GitHub Issues
 
-Send details to: **security@studybuddy.example.com**
+For less sensitive issues, you may also create a private security advisory or contact the maintainers through GitHub.
 
 Please include:
 - Type of vulnerability
