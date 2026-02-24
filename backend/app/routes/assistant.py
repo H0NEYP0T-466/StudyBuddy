@@ -161,7 +161,7 @@ async def chat_with_assistant(
             response_text = await gemini_service.generate_text(
                 final_message,
                 model,
-                chat_history=history if history else None
+                
             )
             logger.success(f"Gemini response generated ({len(response_text)} characters)")
             

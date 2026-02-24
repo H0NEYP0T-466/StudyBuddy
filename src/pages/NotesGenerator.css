@@ -452,7 +452,7 @@
   border-color: var(--accent);
 }
 
-.folder-item.selected {
+.folder-item {
   background: var(--accent);
   color: white;
   border-color: var(--accent);
