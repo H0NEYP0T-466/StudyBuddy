@@ -8,6 +8,7 @@ import base64
 from app.utils.file_processor import extract_text_from_file
 from app.utils.logger import get_logger
 from dotenv import load_dotenv
+from app.services.export_service import export_service
 
 load_dotenv()  # Load environment variables from .env file
 api_key = os.getenv("MISTRAL_API_KEY")
