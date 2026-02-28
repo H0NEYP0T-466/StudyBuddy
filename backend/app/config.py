@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     longcat_api_key: Optional[str] = None
     github_token: Optional[str] = None
+    mistral_api_key: Optional[str] = None
     
     # Server
     port: int = 8003

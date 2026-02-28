@@ -1,17 +1,27 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from typing import List
+from mistralai import Mistral
 import os
 import shutil
-
-from app.services.gemini_service import gemini_service
-from app.services.export_service import export_service
+import base64
 from app.utils.file_processor import extract_text_from_file
 from app.utils.logger import get_logger
+from dotenv import load_dotenv
 
+load_dotenv()  # Load environment variables from .env file
+api_key = os.getenv("MISTRAL_API_KEY")
+if not api_key:
+    raise ValueError("MISTRAL_API_KEY is not set in environment variables")
+client = Mistral(api_key=api_key)
 router = APIRouter(prefix="/api/pen2pdf", tags=["pen2pdf"])
 logger = get_logger("PEN2PDF")
 
+# Helper function to encode files to base64
+def encode_file_to_base64(file_path: str) -> str:
+    """Encode a file to base64 string."""
+    with open(file_path, "rb") as file:
+        return base64.b64encode(file.read()).decode('utf-8')
 
 # app/routes/pen2pdf.py
 
@@ -41,21 +51,45 @@ async def extract_documents(
             filename = os.path.basename(file_path)
             ext = os.path.splitext(filename)[1].lower()
             
-            if ext in ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.ppt', '.pptx']:
-                logger.info(f"Processing {filename} with Gemini (visual extraction)...")
-                prompt = """You are a handwriting-to-digital text converter for an app called StudyBuddy.
-                            Your task:
-                            - Extract readable text from the provided input.
-                            - Detect possible headings (H1/H2/H3) and preserve formatting.
-                            - Return clean, structured text only, no explanations.
-                            if thier is a spelling mistake dont fix it your task in simply an ocr tool simply extract the text as it is without any modification.
-                             Return in clean markdown."""
-                text = await gemini_service.generate_text(
-                    prompt=prompt,
-                    model_name=model,
-                    file_paths=[file_path]
-                )
-                logger.success(f"Successfully extracted text from {filename} using Gemini")
+            if ext in ['.pdf', '.png', '.jpg', '.jpeg', '.webp']:
+                logger.info(f"Processing {filename} with Mistral OCR...")
+                
+                # Encode file to base64
+                base64_file = encode_file_to_base64(file_path)
+                
+                # Determine document type and mime type
+                if ext == '.pdf':
+                    document_type = "document_url"
+                    mime_type = "application/pdf"
+                else:
+                    document_type = "image_url"
+                    # Map extensions to mime types
+                    mime_map = {
+                        '.png': 'image/png',
+                        '.jpg': 'image/jpeg',
+                        '.jpeg': 'image/jpeg',
+                        '.webp': 'image/webp'
+                    }
+                    mime_type = mime_map.get(ext, 'image/jpeg')
+                
+                # Perform OCR
+                try:
+                    ocr_response = client.ocr.process(
+                        model="mistral-ocr-latest",
+                        document={
+                            "type": document_type,
+                            f"{document_type}": f"data:{mime_type};base64,{base64_file}"
+                        },
+                        table_format="html",
+                        include_image_base64=False
+                    )
+                    
+                    # Extract markdown from all pages
+                    text = "\n\n".join([page.markdown for page in ocr_response.pages])
+                    logger.success(f"Successfully extracted text from {filename} using Mistral OCR")
+                except Exception as ocr_error:
+                    logger.error(f"Mistral OCR failed for {filename}: {str(ocr_error)}")
+                    raise
             else:
                 logger.info(f"Processing {filename} with text extraction...")
                 text = await extract_text_from_file(file_path)
