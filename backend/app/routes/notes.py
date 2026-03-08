@@ -1,8 +1,12 @@
 from fastapi import APIRouter, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
 import os
+import io
+import re
+import zipfile
 import shutil
 
 from app.models.database import get_database
@@ -10,6 +14,7 @@ from app.models.schemas import Note
 from app.services.rag_service import get_rag_system
 from app.services.gemini_service import gemini_service
 from app.services.longcat_service import longcat_service
+from app.services.export_service import export_service
 from app.utils.file_processor import extract_text_from_file
 from app.utils.logger import get_logger
 
@@ -268,6 +273,78 @@ async def generate_notes(
                 logger.debug(f"Cleaned up: {file_path}")
             except:
                 logger.warning(f"Failed to clean up: {file_path}")
+
+
+@router.get("/folder/{folder_id}/export-zip")
+async def export_folder_as_zip(folder_id: str, format: str = "pdf"):
+    """Export all notes in a folder as a ZIP file in the requested format."""
+    logger.info(f"Exporting folder {folder_id} as ZIP in {format} format")
+    db = get_database()
+
+    # Validate format
+    valid_formats = {"pdf", "docx", "txt", "md"}
+    if format not in valid_formats:
+        raise HTTPException(status_code=400, detail=f"Invalid format. Must be one of: {', '.join(valid_formats)}")
+
+    # Get folder info for naming
+    try:
+        folder = await db.folders.find_one({"_id": ObjectId(folder_id)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid folder ID")
+
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    folder_name = folder.get("name", "notes")
+
+    # Get all notes in the folder
+    notes = await db.notes.find({"folder_id": folder_id}).to_list(1000)
+    if not notes:
+        raise HTTPException(status_code=404, detail="No notes found in this folder")
+
+    logger.info(f"Found {len(notes)} notes in folder '{folder_name}'")
+
+    # Create zip in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for note in notes:
+            title = note.get("title", "Untitled")
+            content = note.get("content", "")
+            # Sanitize filename
+            safe_title = re.sub(r'[^\w\s\-]', '', title).strip()
+            if not safe_title:
+                safe_title = "Untitled"
+
+            try:
+                if format == "pdf":
+                    file_data = await export_service.export_to_pdf(content, title, watermark=False)
+                    ext = "pdf"
+                elif format == "docx":
+                    file_data = export_service.export_to_docx(content, title)
+                    ext = "docx"
+                elif format == "txt":
+                    file_data = export_service.export_to_txt(content, title)
+                    ext = "txt"
+                else:  # md
+                    file_data = export_service.export_to_markdown(content, title)
+                    ext = "md"
+
+                zf.writestr(f"{safe_title}.{ext}", file_data.read())
+            except Exception as e:
+                logger.error(f"Failed to export note '{title}': {str(e)}")
+                # Skip notes that fail to export instead of failing the whole zip
+                continue
+
+    zip_buffer.seek(0)
+    safe_folder_name = re.sub(r'[^\w\s\-]', '', folder_name).strip() or "notes"
+    zip_filename = f"{safe_folder_name}.zip"
+
+    logger.success(f"Successfully created ZIP with {len(notes)} notes")
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={zip_filename}"},
+    )
 
 
 @router.get("/search/{query}")

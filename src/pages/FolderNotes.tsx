@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
-import { getNotes, createNote, updateNote, deleteNote, getFolders } from '../services/api';
+import { getNotes, createNote, updateNote, deleteNote, getFolders, exportFolderAsZip } from '../services/api';
 import type { Note, Folder } from '../types';
 import 'katex/dist/katex.min.css';
 import './FolderNotes.css';
@@ -19,6 +19,7 @@ const FolderNotes = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deletingNote, setDeletingNote] = useState<Note | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showZipModal, setShowZipModal] = useState(false);
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [loading, setLoading] = useState(true);
   const editorRef = useCallback((node: HTMLTextAreaElement | null) => {
@@ -183,6 +184,29 @@ const FolderNotes = () => {
     }
   };
 
+  const handleZipExport = async (format: 'pdf' | 'docx' | 'txt' | 'md') => {
+    if (!id || !folder) return;
+
+    setLoading(true);
+    try {
+      const response = await exportFolderAsZip(id, format);
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${folder.name}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setShowZipModal(false);
+    } catch (error) {
+      console.error('ZIP export failed:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading notes...</div>;
   }
@@ -211,9 +235,16 @@ const FolderNotes = () => {
             <p className="subtitle">{notes.length} notes</p>
           </div>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className="create-note-button">
-          ➕ New Note
-        </button>
+        <div className="folder-header-actions">
+          {notes.length > 0 && (
+            <button onClick={() => setShowZipModal(true)} className="zip-export-button">
+              📦 Download All as ZIP
+            </button>
+          )}
+          <button onClick={() => setShowCreateModal(true)} className="create-note-button">
+            ➕ New Note
+          </button>
+        </div>
       </div>
 
       <div className="folder-notes-content">
@@ -452,6 +483,45 @@ const FolderNotes = () => {
                 className="delete-button"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showZipModal && (
+        <div className="modal-overlay" onClick={() => setShowZipModal(false)}>
+          <div className="modal zip-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>📦 Download All Notes as ZIP</h2>
+            <p className="zip-modal-description">
+              Choose the format for all <strong>{notes.length}</strong> notes in <strong>{folder?.name}</strong>:
+            </p>
+            <div className="zip-format-options">
+              <button onClick={() => handleZipExport('pdf')} className="zip-format-btn" disabled={loading}>
+                <span className="zip-format-icon">📄</span>
+                <span className="zip-format-label">PDF</span>
+                <span className="zip-format-desc">Best for printing</span>
+              </button>
+              <button onClick={() => handleZipExport('docx')} className="zip-format-btn" disabled={loading}>
+                <span className="zip-format-icon">📝</span>
+                <span className="zip-format-label">DOCX</span>
+                <span className="zip-format-desc">Microsoft Word</span>
+              </button>
+              <button onClick={() => handleZipExport('txt')} className="zip-format-btn" disabled={loading}>
+                <span className="zip-format-icon">📃</span>
+                <span className="zip-format-label">TXT</span>
+                <span className="zip-format-desc">Plain text</span>
+              </button>
+              <button onClick={() => handleZipExport('md')} className="zip-format-btn" disabled={loading}>
+                <span className="zip-format-icon">📋</span>
+                <span className="zip-format-label">Markdown</span>
+                <span className="zip-format-desc">Raw markdown</span>
+              </button>
+            </div>
+            {loading && <p className="zip-loading">Preparing your download...</p>}
+            <div className="modal-actions">
+              <button onClick={() => setShowZipModal(false)} className="cancel-button" disabled={loading}>
+                Cancel
               </button>
             </div>
           </div>

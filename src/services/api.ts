@@ -120,4 +120,10 @@ export const exportPen2PDF = (formData: FormData) => api.post('/api/pen2pdf/expo
   headers: { 'Content-Type': 'multipart/form-data' },
 });
 
+export const exportFolderAsZip = (folderId: string, format: string) =>
+  api.get(`/api/notes/folder/${folderId}/export-zip`, {
+    params: { format },
+    responseType: 'blob',
+  });
+
 export default api;
