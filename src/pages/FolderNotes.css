@@ -46,6 +46,28 @@
   background: var(--accent-hover);
 }
 
+.folder-header-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.zip-export-button {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.zip-export-button:hover {
+  background: var(--bg-panel-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .folder-notes-content {
   display: grid;
   grid-template-columns: 300px 1fr;
@@ -485,13 +507,89 @@
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
+.zip-modal {
+  max-width: 480px;
+}
+
+.zip-modal-description {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: var(--spacing-md) 0 var(--spacing-lg) 0;
+}
+
+.zip-format-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.zip-format-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-lg);
+  background: var(--bg-alt);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zip-format-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg-panel-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.zip-format-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zip-format-icon {
+  font-size: 1.8rem;
+}
+
+.zip-format-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.zip-format-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.zip-loading {
+  text-align: center;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: var(--spacing-md);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 @media (max-width: 768px) {
   .folder-notes-header {
     flex-direction: column;
     gap: var(--spacing-md);
   }
 
-  .create-note-button {
+  .folder-header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .create-note-button,
+  .zip-export-button {
     width: 100%;
   }
 
@@ -506,5 +604,9 @@
 
   .note-viewer {
     min-height: 500px;
+  }
+
+  .zip-format-options {
+    grid-template-columns: 1fr;
   }
 }

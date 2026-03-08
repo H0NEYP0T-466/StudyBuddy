@@ -687,6 +687,23 @@ class ExportService:
         output.seek(0)
         return output
 
+    @staticmethod
+    def export_to_txt(content: str, title: str) -> io.BytesIO:
+        """Export content as plain text file with markdown stripped."""
+        output = io.BytesIO()
+        # Strip common markdown syntax for plain text
+        text = f"{title}\n{'=' * len(title)}\n\n{content}"
+        # Remove markdown bold/italic markers
+        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+        text = re.sub(r'\*(.+?)\*', r'\1', text)
+        # Remove markdown heading markers
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        # Remove markdown code block markers
+        text = re.sub(r'```\w*\n?', '', text)
+        output.write(text.encode("utf-8"))
+        output.seek(0)
+        return output
+
 
 # Global instance
 export_service = ExportService()
