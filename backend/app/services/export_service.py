@@ -453,8 +453,8 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
     # Fix LaTeX delimiter issues before processing
     text = fix_latex_delimiters(text)
     
-    # First, escape only ampersands in user content (< and > are OK for our XML tags)
-    text = text.replace('&', '&amp;')
+    # Escape special XML characters in user content to prevent ReportLab parse errors
+    text = sanitize_for_xml(text)
     
     # Check if text contains LaTeX formulas
     latex_pattern = r'\$([^$]+?)\$'
@@ -552,6 +552,17 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
         return apply_markdown_formatting(text)
 
 
+def sanitize_for_xml(text: str) -> str:
+    """
+    Escape special XML characters in text for ReportLab's Paragraph XML parser.
+    Must be called before adding any ReportLab XML markup tags.
+    """
+    text = text.replace('&', '&amp;')
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    return text
+
+
 def apply_markdown_formatting(text: str) -> str:
     """
     Apply markdown formatting (bold, italic, code) to text.
@@ -622,7 +633,7 @@ class ExportService:
             story = []
             
             # Add title
-            story.append(Paragraph(title, styles['CustomTitle']))
+            story.append(Paragraph(sanitize_for_xml(title), styles['CustomTitle']))
             story.append(Spacer(1, 0.3*inch))
             
             # Parse markdown content and add to story
