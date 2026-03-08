@@ -336,7 +336,8 @@ async def export_folder_as_zip(folder_id: str, format: str = "pdf"):
                 continue
 
     zip_buffer.seek(0)
-    zip_filename = f"{folder_name}.zip"
+    safe_folder_name = re.sub(r'[^\w\s\-]', '', folder_name).strip() or "notes"
+    zip_filename = f"{safe_folder_name}.zip"
 
     logger.success(f"Successfully created ZIP with {len(notes)} notes")
     return StreamingResponse(
