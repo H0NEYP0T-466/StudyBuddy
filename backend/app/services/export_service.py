@@ -14,6 +14,8 @@ from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Preformatted, Image
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
@@ -25,6 +27,109 @@ from matplotlib import mathtext
 WATERMARK_TEXT = "~honeypot"
 
 logger = logging.getLogger(__name__)
+
+# ==========================
+# Unicode Font Registration
+# ==========================
+
+def _register_unicode_fonts() -> str:
+    """
+    Register a Unicode-capable TrueType font family with ReportLab.
+
+    Tries DejaVuSans (common on Linux/Docker images) first, then falls back
+    to the Vera font bundled with ReportLab, and finally to Helvetica.
+
+    Returns the base font name that was registered (e.g. 'DejaVuSans').
+    """
+    candidates = [
+        {
+            "name": "DejaVuSans",
+            "regular": [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf",
+            ],
+            "bold": [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf",
+            ],
+            "italic": [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+                "/usr/share/fonts/dejavu/DejaVuSans-Oblique.ttf",
+            ],
+            "boldItalic": [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
+                "/usr/share/fonts/dejavu/DejaVuSans-BoldOblique.ttf",
+            ],
+        },
+    ]
+
+    import reportlab as _rl
+    _rl_fonts_dir = os.path.join(os.path.dirname(_rl.__file__), "fonts")
+
+    for candidate in candidates:
+        name = candidate["name"]
+        paths = {}
+        ok = True
+        for variant, path_list in candidate.items():
+            if variant == "name":
+                continue
+            found = next((p for p in path_list if os.path.exists(p)), None)
+            if found is None:
+                ok = False
+                break
+            paths[variant] = found
+
+        if not ok:
+            continue
+
+        try:
+            pdfmetrics.registerFont(TTFont(name, paths["regular"]))
+            pdfmetrics.registerFont(TTFont(f"{name}-Bold", paths["bold"]))
+            pdfmetrics.registerFont(TTFont(f"{name}-Italic", paths["italic"]))
+            pdfmetrics.registerFont(TTFont(f"{name}-BoldItalic", paths["boldItalic"]))
+            pdfmetrics.registerFontFamily(
+                name,
+                normal=name,
+                bold=f"{name}-Bold",
+                italic=f"{name}-Italic",
+                boldItalic=f"{name}-BoldItalic",
+            )
+            logger.debug(f"Registered Unicode font family: {name}")
+            return name
+        except Exception as exc:
+            logger.warning(f"Could not register {name}: {exc}")
+
+    # Fallback: Vera (bundled with ReportLab) – supports more Unicode than Helvetica
+    vera_regular = os.path.join(_rl_fonts_dir, "Vera.ttf")
+    vera_bold = os.path.join(_rl_fonts_dir, "VeraBd.ttf")
+    vera_italic = os.path.join(_rl_fonts_dir, "VeraIt.ttf")
+    vera_bolditalic = os.path.join(_rl_fonts_dir, "VeraBI.ttf")
+    if all(os.path.exists(p) for p in [vera_regular, vera_bold, vera_italic, vera_bolditalic]):
+        try:
+            pdfmetrics.registerFont(TTFont("Vera", vera_regular))
+            pdfmetrics.registerFont(TTFont("Vera-Bold", vera_bold))
+            pdfmetrics.registerFont(TTFont("Vera-Italic", vera_italic))
+            pdfmetrics.registerFont(TTFont("Vera-BoldItalic", vera_bolditalic))
+            pdfmetrics.registerFontFamily(
+                "Vera",
+                normal="Vera",
+                bold="Vera-Bold",
+                italic="Vera-Italic",
+                boldItalic="Vera-BoldItalic",
+            )
+            logger.debug("Registered Unicode font family: Vera (fallback)")
+            return "Vera"
+        except Exception as exc:
+            logger.warning(f"Could not register Vera: {exc}")
+
+    logger.warning("No Unicode TTF font available; falling back to Helvetica (limited Unicode support)")
+    return "Helvetica"
+
+
+# Register fonts at module load time so styles can reference the family name.
+_UNICODE_FONT = _register_unicode_fonts()
 
 # ==========================
 # ReportLab PDF Utilities
@@ -135,7 +240,17 @@ def render_latex_to_image(latex_text: str, inline: bool = True) -> str:
 def create_styles():
     """Create custom paragraph styles for PDF."""
     styles = getSampleStyleSheet()
-    
+
+    # Derive bold/italic font names from the registered Unicode font family.
+    # When _UNICODE_FONT is 'Helvetica' the built-in Helvetica-Bold/-Oblique
+    # names are used; for TrueType families the registered variant names are used.
+    if _UNICODE_FONT == "Helvetica":
+        _bold = "Helvetica-Bold"
+        _italic = "Helvetica-Oblique"
+    else:
+        _bold = f"{_UNICODE_FONT}-Bold"
+        _italic = f"{_UNICODE_FONT}-Italic"
+
     # Title style
     styles.add(ParagraphStyle(
         name='CustomTitle',
@@ -144,7 +259,7 @@ def create_styles():
         textColor=colors.HexColor('#1a1a1a'),
         spaceAfter=30,
         alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
+        fontName=_bold
     ))
     
     # Heading 2 style
@@ -155,7 +270,7 @@ def create_styles():
         textColor=colors.HexColor('#2a2a2a'),
         spaceAfter=10,
         spaceBefore=20,
-        fontName='Helvetica-Bold',
+        fontName=_bold,
         borderWidth=0,
         borderPadding=5,
         borderColor=colors.HexColor('#e0e0e0'),
@@ -170,7 +285,7 @@ def create_styles():
         textColor=colors.HexColor('#3a3a3a'),
         spaceAfter=8,
         spaceBefore=15,
-        fontName='Helvetica-Bold'
+        fontName=_bold
     ))
     
     # Body text style
@@ -181,7 +296,7 @@ def create_styles():
         textColor=colors.HexColor('#333333'),
         alignment=TA_JUSTIFY,
         spaceAfter=10,
-        fontName='Helvetica'
+        fontName=_UNICODE_FONT
     ))
     
     # Code style
@@ -232,9 +347,15 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
     Parse markdown content and convert to ReportLab flowables.
     Supports headings, paragraphs, bold, italic, code blocks, lists, and LaTeX formulas.
     LaTeX formulas are rendered as images and placed inline.
-    
+
     Heading normalization: Any heading with 4 or more '#' symbols is treated as '###'.
     """
+    # Pre-process the full content to normalise multi-line LaTeX delimiters
+    # ($$...$$, \\[...\\], \\(...\\)) before splitting into lines.  This is
+    # necessary because those environments can span multiple lines and would
+    # otherwise be missed by the per-line format_inline_markdown processing.
+    content = fix_latex_delimiters(content)
+
     elements = []
     lines = content.split('\n')
     i = 0
@@ -393,40 +514,50 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
 
 def fix_latex_delimiters(text: str) -> str:
     """
-    Fix common LaTeX delimiter issues:
-    1. Add missing closing $ delimiters
-    2. Handle backtick-enclosed LaTeX (convert `$...$` to $...$)
-    
+    Fix common LaTeX delimiter issues and normalise all LaTeX delimiters to
+    the single-dollar ``$...$`` form expected by the rendering pipeline.
+
+    Conversions performed (in order):
+    1. Backtick-enclosed LaTeX: `` `$...$` `` or `` `$...` `` → ``$...$``
+    2. Display-math double-dollars: ``$$...$$`` → ``$...$``
+    3. LaTeX display-math brackets: ``\\[...\\]`` → ``$...$``
+    4. LaTeX inline-math parens: ``\\(...\\)`` → ``$...$``
+    5. Add a missing closing ``$`` when the count on a line is odd.
+
     Args:
         text: The text potentially containing LaTeX
-        
+
     Returns:
-        Text with fixed LaTeX delimiters
+        Text with normalised ``$...$`` LaTeX delimiters.
     """
-    # First, handle backtick-enclosed LaTeX: `$...$` or `$...` -> $...$
-    # This handles cases like `$formula$` or `$formula with backtick at end
+    # 1. Backtick-enclosed LaTeX: `$...$` or `$...` -> $...$
     text = re.sub(r'`\$([^$`]+)\$`', r'$\1$', text)  # `$...$` -> $...$
     text = re.sub(r'`\$([^$`]+)`', r'$\1$', text)    # `$...` -> $...$
-    
-    # Now fix unmatched $ delimiters
-    # Find all $ positions
+
+    # 2. Display-math double-dollars $$...$$ -> $...$
+    # Use re.DOTALL so multi-line display math is handled correctly.
+    text = re.sub(r'\$\$(.+?)\$\$', lambda m: '$' + m.group(1).strip() + '$',
+                  text, flags=re.DOTALL)
+
+    # 3. LaTeX \[...\] display-math brackets -> $...$
+    text = re.sub(r'\\\[(.+?)\\\]', lambda m: '$' + m.group(1).strip() + '$',
+                  text, flags=re.DOTALL)
+
+    # 4. LaTeX \(...\) inline-math parens -> $...$
+    text = re.sub(r'\\\((.+?)\\\)', lambda m: '$' + m.group(1).strip() + '$',
+                  text, flags=re.DOTALL)
+
+    # 5. Fix unmatched single $ delimiters (odd count per line)
     dollar_positions = [m.start() for m in re.finditer(r'\$', text)]
-    
-    # If odd number of $, we have an unclosed delimiter
     if len(dollar_positions) % 2 == 1:
-        # Add closing $ at the end of the line or before newline
         lines = text.split('\n')
         fixed_lines = []
-        
         for line in lines:
-            line_dollars = line.count('$')
-            if line_dollars % 2 == 1:
-                # This line has unclosed $
+            if line.count('$') % 2 == 1:
                 line = line.rstrip() + '$'
             fixed_lines.append(line)
-        
         text = '\n'.join(fixed_lines)
-    
+
     return text
 
 
@@ -435,64 +566,67 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
     Format inline markdown elements like bold, italic, code, and LaTeX.
     Converts to ReportLab XML markup.
     LaTeX formulas are converted to images and inserted at the correct position.
-    
+
     Args:
         text: The text to format
         styles: ReportLab styles (optional, needed for complex formatting)
         temp_image_files: List to track temporary image files for cleanup
-    
+
     Returns:
         Either a string with XML markup, or a list of flowables if images are present
-    
+
     Note: ReportLab's Paragraph class handles XML-like markup, so we don't
     escape angle brackets for bold/italic tags that we intentionally add.
+    XML-escaping is applied to non-LaTeX text segments ONLY so that LaTeX
+    formulas (which may legitimately contain ``<``, ``>``, ``&``) are not
+    corrupted before being sent to matplotlib for rendering.
     """
     if temp_image_files is None:
         temp_image_files = []
-    
-    # Fix LaTeX delimiter issues before processing
+
+    # Normalise all LaTeX delimiter variants to $...$ BEFORE any escaping.
     text = fix_latex_delimiters(text)
-    
-    # Escape special XML characters in user content to prevent ReportLab parse errors
-    text = sanitize_for_xml(text)
-    
-    # Check if text contains LaTeX formulas
+
+    # Check if text contains LaTeX formulas (inspect raw text, before sanitising)
     latex_pattern = r'\$([^$]+?)\$'
     has_latex = re.search(latex_pattern, text)
-    
+
     if has_latex:
-        # Split text by LaTeX formulas and create a mix of text and images
+        # Split text by LaTeX formulas and create a mix of text and images.
+        # Only the non-LaTeX segments are XML-escaped; the formula content is
+        # passed as-is to matplotlib so characters like < > & render correctly.
         parts = []
         last_end = 0
-        
+
         for match in re.finditer(latex_pattern, text):
-            # Add text before the formula
+            # Sanitize and format the plain-text segment before the formula.
             before_text = text[last_end:match.start()]
             if before_text:
-                # Apply markdown formatting to the text part
-                formatted_text = apply_markdown_formatting(before_text)
+                formatted_text = apply_markdown_formatting(sanitize_for_xml(before_text))
                 parts.append(('text', formatted_text))
-            
-            # Render LaTeX formula as image
+
+            # Render LaTeX formula as image (no XML escaping – raw LaTeX source).
             latex_formula = match.group(1).strip()
             image_path = render_latex_to_image(latex_formula, inline=True)
-            
+
             if image_path:
                 temp_image_files.append(image_path)
                 # Store both image path and formula for fallback
                 parts.append(('image', image_path, latex_formula))
             else:
-                # Fallback to monospace if image rendering fails
-                parts.append(('text', f'<font name="Courier">{latex_formula}</font>'))
-            
+                # Fallback to monospace if image rendering fails.
+                # Sanitize the formula text so it is safe in ReportLab XML.
+                safe_formula = sanitize_for_xml(latex_formula)
+                parts.append(('text', f'<font name="Courier">{safe_formula}</font>'))
+
             last_end = match.end()
-        
-        # Add remaining text
+
+        # Sanitize and format any trailing plain-text segment.
         if last_end < len(text):
             remaining_text = text[last_end:]
-            formatted_text = apply_markdown_formatting(remaining_text)
+            formatted_text = apply_markdown_formatting(sanitize_for_xml(remaining_text))
             parts.append(('text', formatted_text))
-        
+
         # If we have images, we need to return a list of flowables
         if any(p[0] == 'image' for p in parts):
             if styles is None:
@@ -503,9 +637,9 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
                         result.append(p[1])
                     else:  # image
                         # Use the formula text (p[2]) for fallback
-                        result.append(f'<font name="Courier">{p[2]}</font>')
+                        result.append(f'<font name="Courier">{sanitize_for_xml(p[2])}</font>')
                 return ''.join(result)
-            
+
             flowables = []
             for p in parts:
                 part_type = p[0]
@@ -518,38 +652,38 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
                     try:
                         # Create inline image with appropriate size
                         img = Image(part_value)
-                        
+
                         # Get the actual image dimensions
                         actual_width = img.imageWidth
                         actual_height = img.imageHeight
-                        
+
                         # Scale to a reasonable inline size (0.5 inch height as base)
                         # This gives us readable math inline with text
                         target_height = 0.5 * inch
-                        
+
                         # Maintain aspect ratio
                         aspect_ratio = actual_width / float(actual_height)
                         img.drawHeight = target_height
                         img.drawWidth = target_height * aspect_ratio
-                        
+
                         # Cap maximum width to avoid overflow
                         max_width = 4 * inch
                         if img.drawWidth > max_width:
                             img.drawWidth = max_width
                             img.drawHeight = max_width / aspect_ratio
-                        
+
                         flowables.append(img)
                         logger.debug(f"Added image flowable: {part_value} ({img.drawWidth}, {img.drawHeight})")
                     except Exception as e:
                         logger.error(f"Failed to create image from {part_value}: {str(e)}")
-            
+
             return flowables if flowables else ''
         else:
             # No images, just return formatted text
             return ''.join(p[1] for p in parts)
     else:
-        # No LaTeX formulas, just apply markdown formatting
-        return apply_markdown_formatting(text)
+        # No LaTeX formulas – sanitize the whole text then apply markdown.
+        return apply_markdown_formatting(sanitize_for_xml(text))
 
 
 def sanitize_for_xml(text: str) -> str:
