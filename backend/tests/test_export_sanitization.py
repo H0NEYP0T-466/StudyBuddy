@@ -101,3 +101,54 @@ class TestApplyMarkdownFormatting:
     def test_inline_code_still_works(self):
         result = apply_markdown_formatting("`code`")
         assert '<font name="Courier"' in result
+
+    def test_code_span_protects_bold_markers_inside(self):
+        """Bold markers inside a code span must not become <b> tags."""
+        result = apply_markdown_formatting("`**not bold**`")
+        # The asterisks inside backticks should remain as literal text inside <font>
+        assert "<b>" not in result
+        assert '<font name="Courier"' in result
+        assert "**not bold**" in result
+
+    def test_bold_spanning_code_boundary_produces_valid_xml(self):
+        """Regression: bold regex spanning a code-span boundary must not produce
+        mis-nested tags like <font>text <b>bold</font> more</b>."""
+        styles = create_styles()
+        # The problematic input that triggered the original bug:
+        # `text **bold` more**  (bold opens before code closes)
+        # After the fix the bold/italic regex cannot span code boundaries.
+        text = "`text **bold` more**"
+        result = format_inline_markdown(text)
+        assert isinstance(result, str)
+        # Must be parseable by ReportLab without raising ValueError
+        if result.strip():
+            Paragraph(result, styles["CustomBody"])
+
+    def test_list_item_with_bold_and_code_span(self):
+        """List items containing both bold and inline code must not crash PDF."""
+        styles = create_styles()
+        content = "- Use **bold** and `code` together\n- Another item `value **x**`"
+        elements, temp_files = parse_markdown_to_reportlab(content, styles)
+        assert len(elements) > 0
+
+    def test_mixed_formatting_parseable_by_reportlab(self):
+        """Various mixed bold/italic/code combinations must produce valid ReportLab XML
+        and preserve the expected formatting structure."""
+        styles = create_styles()
+        cases = [
+            # (input, expected_substrings_in_output)
+            ("**bold `code` end**", ["<b>", "</b>", '<font name="Courier"']),
+            ("`code **bold** end`", ['<font name="Courier"', "**bold** end"]),
+            ("*italic `code` end*", ["<i>", "</i>", '<font name="Courier"']),
+            ("**`code`**", ["<b>", "</b>", '<font name="Courier"']),
+            ("`code`**bold**", ['<font name="Courier"', "<b>bold</b>"]),
+            ("**bold** and `code` and *italic*", ["<b>bold</b>", '<font name="Courier"', "<i>italic</i>"]),
+        ]
+        for text, expected_parts in cases:
+            result = format_inline_markdown(text)
+            assert isinstance(result, str), f"Expected string for: {text!r}"
+            for part in expected_parts:
+                assert part in result, f"Expected {part!r} in result for {text!r}, got: {result!r}"
+            # Must not raise ValueError when parsed by ReportLab
+            if result.strip():
+                Paragraph(result, styles["CustomBody"])

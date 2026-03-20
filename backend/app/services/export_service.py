@@ -701,25 +701,47 @@ def apply_markdown_formatting(text: str) -> str:
     """
     Apply markdown formatting (bold, italic, code) to text.
     This is separated from format_inline_markdown to handle LaTeX formulas properly.
+
+    Code spans are extracted before bold/italic regexes run so that the bold/
+    italic patterns cannot match across code-span boundaries and produce
+    mis-nested XML tags (e.g. ``<font>text <b>bold</font> more</b>``) that
+    crash ReportLab's XML paragraph parser.
     """
+    # --- Step 1: protect code spans from bold/italic processing ---------------
+    # Replace each `...` span with a NUL-delimited placeholder so that the
+    # bold/italic regexes below never see (or split) backtick-enclosed content.
+    code_spans: list = []
+
+    def _save_code_span(m: re.Match) -> str:
+        idx = len(code_spans)
+        code_spans.append(m.group(1))
+        return f'\x00CODE{idx}\x00'
+
+    text = re.sub(r'`([^`]+)`', _save_code_span, text)
+
+    # --- Step 2: bold/italic formatting (safe – no code spans in text) --------
     # Handle bold + italic first (before individual patterns)
     # ***text*** or ___text___
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
     text = re.sub(r'___(.+?)___', r'<b><i>\1</i></b>', text)
-    
-    # Handle bold **text** (use ** for bold, not __ to avoid conflicts with Python identifiers)
+
+    # Handle bold **text**
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    
+
     # Handle italic *text* (be careful not to match mid-word asterisks)
     text = re.sub(r'(?<!\w)\*([^*]+?)\*(?!\w)', r'<i>\1</i>', text)
-    
+
     # Handle italic _text_ (be careful with underscores in identifiers like __init__)
     # Only match single underscores that are not adjacent to other underscores
     text = re.sub(r'(?<![_a-zA-Z0-9])_([^_]+?)_(?![_a-zA-Z0-9])', r'<i>\1</i>', text)
-    
-    # Handle inline code `code` (but not LaTeX which was already handled)
-    text = re.sub(r'`([^`$]+)`', r'<font name="Courier" color="#333333">\1</font>', text)
-    
+
+    # --- Step 3: restore code spans with proper ReportLab font markup ---------
+    for idx, content in enumerate(code_spans):
+        text = text.replace(
+            f'\x00CODE{idx}\x00',
+            f'<font name="Courier" color="#333333">{content}</font>',
+        )
+
     return text
 
 
