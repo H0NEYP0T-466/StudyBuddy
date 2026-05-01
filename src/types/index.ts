@@ -111,7 +111,7 @@ export const AI_MODELS = [
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', supportsFiles: true },
   
   // LongCat Models
-  { value: 'longcat-2.0-preview', label: 'LongCat-2.0-Preview', supportsFiles: false },
+  { value: 'LongCat-2.0-Preview', label: 'LongCat-2.0-Preview', supportsFiles: false },
   { value: 'longcat-flash-lite', label: 'LongCat-Flash-Lite', supportsFiles: false },
   { value: 'longcat-flash-chat', label: 'LongCat-Flash-Chat', supportsFiles: false },
   { value: 'longcat-flash-thinking', label: 'LongCat-Flash-Thinking', supportsFiles: false },

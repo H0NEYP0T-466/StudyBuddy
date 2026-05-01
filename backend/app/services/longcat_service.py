@@ -129,7 +129,7 @@ Return the properly formatted notes:"""
     async def generate_notes(
         self,
         text: str,
-        model_name: str = "longcat-2.0-preview",
+        model_name: str = "LongCat-2.0-Preview",
     ) -> str:
         """Generate simple, unformatted study notes (Phase 1 of 2-phase generation)."""
         prompt = f"""

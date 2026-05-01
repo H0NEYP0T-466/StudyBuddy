@@ -173,7 +173,7 @@ async def delete_note(note_id: str):
 # --------------------------------------------------------------------------- #
 #  LongCat model identifiers that use Mistral OCR → LongCat notes pipeline
 # --------------------------------------------------------------------------- #
-LONGCAT_NOTES_MODELS = {"longcat-2.0-preview", "longcat-flash-thinking-2601"}
+LONGCAT_NOTES_MODELS = {"LongCat-2.0-Preview", "longcat-flash-thinking-2601"}
 
 
 @router.post("/generate")

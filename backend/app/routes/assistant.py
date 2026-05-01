@@ -165,7 +165,7 @@ async def chat_with_assistant(
             )
             logger.success(f"Gemini response generated ({len(response_text)} characters)")
             
-        elif model.startswith("longcat"):
+        elif model.lower().startswith("longcat"):
             logger.info(f"Generating response using LongCat model: {model}")
             # Build proper chat history for LongCat
             longcat_history = []
