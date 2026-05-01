@@ -356,6 +356,30 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
     # otherwise be missed by the per-line format_inline_markdown processing.
     content = fix_latex_delimiters(content)
 
+    # Normalise line endings: strip \r so that \r\n becomes \n.
+    # This MUST happen before splitting into lines, otherwise trailing \r
+    # characters survive and render as ■ in PDF fonts (especially Courier
+    # used in code blocks, which bypasses sanitize_for_xml).
+    content = content.replace('\r', '')
+
+    # Strip problematic Unicode characters that PDF fonts can't render (shown
+    # as ■ black squares).  These commonly appear in AI-generated markdown.
+    _INVISIBLE_CHARS = str.maketrans({
+        '\u200b': '',    # zero-width space
+        '\u200c': '',    # zero-width non-joiner
+        '\u200d': '',    # zero-width joiner
+        '\u200e': '',    # left-to-right mark
+        '\u200f': '',    # right-to-left mark
+        '\u2028': '\n',  # line separator → newline
+        '\u2029': '\n',  # paragraph separator → newline
+        '\ufeff': '',    # BOM / zero-width no-break space
+        '\u00ad': '',    # soft hyphen
+        '\u2060': '',    # word joiner
+        '\ufffe': '',    # non-character
+        '\uffff': '',    # non-character
+    })
+    content = content.translate(_INVISIBLE_CHARS)
+
     elements = []
     lines = content.split('\n')
     i = 0
@@ -689,8 +713,16 @@ def format_inline_markdown(text: str, styles=None, temp_image_files=None) -> str
 def sanitize_for_xml(text: str) -> str:
     """
     Escape special XML characters in text for ReportLab's Paragraph XML parser.
+    Also strips non-printable / non-renderable Unicode characters that cause ■
+    glyphs in PDF output.
     Must be called before adding any ReportLab XML markup tags.
     """
+    # Strip carriage returns and other control chars (except \n which is
+    # already handled by the line splitter).
+    text = text.replace('\r', '')
+    # Remove Unicode chars that common PDF fonts can't render
+    text = re.sub(r'[\u200b-\u200f\u2028\u2029\u2060\ufeff\ufffe\uffff\u00ad]', '', text)
+    # XML-escape
     text = text.replace('&', '&amp;')
     text = text.replace('<', '&lt;')
     text = text.replace('>', '&gt;')
@@ -701,25 +733,44 @@ def apply_markdown_formatting(text: str) -> str:
     """
     Apply markdown formatting (bold, italic, code) to text.
     This is separated from format_inline_markdown to handle LaTeX formulas properly.
+
+    Processing order matters to avoid malformed XML:
+    1. Inline code is extracted FIRST and replaced with placeholders so that
+       characters like * and _ inside code spans are not treated as formatting.
+    2. Bold/italic formatting is applied to the remaining text.
+    3. Placeholders are restored with the properly wrapped <font> tags.
     """
-    # Handle bold + italic first (before individual patterns)
-    # ***text*** or ___text___
+    # --- Step 1: Extract inline code spans into placeholders ---
+    code_spans = []
+
+    def _replace_code(match):
+        idx = len(code_spans)
+        code_spans.append(match.group(1))
+        return f"\x00CODE{idx}\x00"
+
+    text = re.sub(r'`([^`$]+)`', _replace_code, text)
+
+    # --- Step 2: Apply bold / italic formatting (safe now — no code content) ---
+    # Bold + italic: ***text*** or ___text___
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
     text = re.sub(r'___(.+?)___', r'<b><i>\1</i></b>', text)
-    
-    # Handle bold **text** (use ** for bold, not __ to avoid conflicts with Python identifiers)
+
+    # Bold: **text**
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    
-    # Handle italic *text* (be careful not to match mid-word asterisks)
+
+    # Italic: *text* (not mid-word)
     text = re.sub(r'(?<!\w)\*([^*]+?)\*(?!\w)', r'<i>\1</i>', text)
-    
-    # Handle italic _text_ (be careful with underscores in identifiers like __init__)
-    # Only match single underscores that are not adjacent to other underscores
+
+    # Italic: _text_ (not inside identifiers like __init__)
     text = re.sub(r'(?<![_a-zA-Z0-9])_([^_]+?)_(?![_a-zA-Z0-9])', r'<i>\1</i>', text)
-    
-    # Handle inline code `code` (but not LaTeX which was already handled)
-    text = re.sub(r'`([^`$]+)`', r'<font name="Courier" color="#333333">\1</font>', text)
-    
+
+    # --- Step 3: Restore code spans with proper <font> wrapping ---
+    for idx, code_content in enumerate(code_spans):
+        text = text.replace(
+            f"\x00CODE{idx}\x00",
+            f'<font name="Courier" color="#333333">{code_content}</font>',
+        )
+
     return text
 
 
