@@ -8,14 +8,16 @@ import type { Folder } from '../types';
 import 'katex/dist/katex.min.css';
 import './NotesGenerator.css';
 
-const GEMINI_MODELS = [
+const NOTES_MODELS = [
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  { value: 'longcat-2.0-preview', label: 'LongCat 2.0 Preview' },
+  { value: 'longcat-flash-thinking-2601', label: 'LongCat Flash Thinking 2601' },
 ];
 
 const NotesGenerator = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [model, setModel] = useState(GEMINI_MODELS[0].value);
+  const [model, setModel] = useState(NOTES_MODELS[0].value);
   const [markdown, setMarkdown] = useState('');
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(false);
@@ -303,7 +305,7 @@ const NotesGenerator = () => {
               onChange={(e) => setModel(e.target.value)}
               className="model-select"
             >
-              {GEMINI_MODELS.map((m) => (
+              {NOTES_MODELS.map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
                 </option>

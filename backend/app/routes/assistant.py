@@ -87,7 +87,7 @@ async def chat_with_assistant(
         if use_rag:
             logger.info("Searching RAG database for relevant context...")
             rag = await get_rag_system()
-            results = rag.search(message, k=3)
+            results = await rag.search(message, k=3)
             
             if results:
                 rag_context = "\n\nRelevant context from your documents:\n"

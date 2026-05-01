@@ -14,6 +14,7 @@ from app.models.schemas import Note
 from app.services.rag_service import get_rag_system
 from app.services.gemini_service import gemini_service
 from app.services.longcat_service import longcat_service
+from app.services.mistral_service import mistral_service
 from app.services.export_service import export_service
 from app.utils.file_processor import extract_text_from_file
 from app.utils.logger import get_logger
@@ -169,102 +170,121 @@ async def delete_note(note_id: str):
     return {"message": "Note deleted successfully"}
 
 
+# --------------------------------------------------------------------------- #
+#  LongCat model identifiers that use Mistral OCR → LongCat notes pipeline
+# --------------------------------------------------------------------------- #
+LONGCAT_NOTES_MODELS = {"longcat-2.0-preview", "longcat-flash-thinking-2601"}
+
+
 @router.post("/generate")
 async def generate_notes(
     model: str = Form(...),
     files: List[UploadFile] = File(None)
 ):
-    """Generate notes from uploaded files using AI with 2-phase approach."""
+    """Generate notes from uploaded files using AI with 2-phase approach.
+
+    Supported model paths:
+        gemini-*                      → Gemini (native file upload) + LongCat formatting
+        longcat-2.0-preview           → Mistral OCR + LongCat 2.0 Preview + LongCat formatting
+        longcat-flash-thinking-2601   → Mistral OCR + LongCat Flash Thinking + LongCat formatting
+    """
     logger.info(f"=== NOTES GENERATION STARTED ===")
     logger.info(f"Requested model: {model}")
-    
+
+    use_longcat = model in LONGCAT_NOTES_MODELS
+
     # Save uploaded files temporarily
     temp_files = []
     extracted_text = ""
-    
+
     try:
         if files:
             logger.debug(f"Processing {len(files)} files")
             os.makedirs("backend/uploads", exist_ok=True)
-            
+
             for file in files:
                 file_path = f"backend/uploads/{file.filename}"
                 with open(file_path, "wb") as buffer:
                     shutil.copyfileobj(file.file, buffer)
                 temp_files.append(file_path)
                 logger.info(f"Saved file: {file.filename}")
-                
-                # Extract text
-                text = await extract_text_from_file(file_path)
+
+                # ----- Text extraction differs by model path -----
+                if use_longcat:
+                    # LongCat path: use Mistral OCR for text extraction
+                    logger.info(f"Using Mistral OCR for {file.filename}")
+                    text = mistral_service.ocr_extract(file_path)
+                else:
+                    # Gemini path: use default text extraction
+                    text = await extract_text_from_file(file_path)
+
                 extracted_text += text + "\n\n"
                 logger.debug(f"Extracted {len(text)} characters from {file.filename}")
-        
+
         if not extracted_text:
             logger.error("No text extracted from files")
             raise HTTPException(status_code=400, detail="No text could be extracted from files")
-        
+
         logger.info(f"Total extracted text: {len(extracted_text)} characters")
-        logger.info(f"[PHASE 1] Starting Gemini note generation...")
-        
-        # PHASE 1: Generate simple notes using Gemini
-        # The 2-phase approach always uses Gemini for Phase 1 and LongCat for Phase 2
-        if model.startswith("gemini"):
-            gemini_model = model
+
+        # ================================================================== #
+        #  PHASE 1: Generate study notes content
+        # ================================================================== #
+        if use_longcat:
+            # --- LongCat Phase 1 ---
+            logger.info(f"[PHASE 1] Starting LongCat note generation with model: {model}")
+            phase1_notes = await longcat_service.generate_notes(extracted_text, model)
+            phase1_model = model
         else:
-            # Default to gemini-2.5-flash for 2-phase generation
-            gemini_model = "gemini-2.5-flash"
-            logger.info(f"Note: 2-phase generation always uses Gemini + LongCat. Using default: {gemini_model}")
-        
-        logger.info(f"[PHASE 1] Using Gemini model: {gemini_model}")
-        logger.debug(f"[PHASE 1] Gemini Input (first 500 chars): {extracted_text[:500]}...")
-        
-        gemini_notes = await gemini_service.generate_notes(
-            extracted_text, 
-            gemini_model,
-            temp_files if files else None
-        )
-        
-        logger.success(f"[PHASE 1] Gemini notes generated ({len(gemini_notes)} characters)")
-        logger.debug(f"[PHASE 1] Gemini Output (first 1000 chars): {gemini_notes[:1000]}...")
-        logger.info("="*80)
-        logger.info("[PHASE 1] GEMINI OUTPUT (FULL):")
-        logger.info("="*80)
-        logger.info(gemini_notes)
-        logger.info("="*80)
-        
-        # PHASE 2: Format notes using LongCat
-        logger.info(f"[PHASE 2] Starting LongCat formatting...")
-        longcat_model = "longcat-flash-lite"
-        logger.info(f"[PHASE 2] Using LongCat model: {longcat_model}")
-        logger.debug(f"[PHASE 2] LongCat Input (Gemini output, first 1000 chars): {gemini_notes[:1000]}...")
-        
-        formatted_notes = await longcat_service.format_notes(gemini_notes, longcat_model)
-        
-        logger.success(f"[PHASE 2] LongCat formatted notes generated ({len(formatted_notes)} characters)")
-        logger.debug(f"[PHASE 2] LongCat Output (first 1000 chars): {formatted_notes[:1000]}...")
-        logger.info("="*80)
+            # --- Gemini Phase 1 (existing behaviour) ---
+            gemini_model = model if model.startswith("gemini") else "gemini-2.5-flash"
+            logger.info(f"[PHASE 1] Starting Gemini note generation with model: {gemini_model}")
+            phase1_notes = await gemini_service.generate_notes(
+                extracted_text,
+                gemini_model,
+                temp_files if files else None
+            )
+            phase1_model = gemini_model
+
+        logger.success(f"[PHASE 1] Notes generated ({len(phase1_notes)} characters)")
+        logger.info("=" * 80)
+        logger.info("[PHASE 1] OUTPUT (FULL):")
+        logger.info("=" * 80)
+        logger.info(phase1_notes)
+        logger.info("=" * 80)
+
+        # ================================================================== #
+        #  PHASE 2: Format notes using LongCat-Flash-Lite
+        # ================================================================== #
+        longcat_format_model = "longcat-flash-lite"
+        logger.info(f"[PHASE 2] Starting LongCat formatting with model: {longcat_format_model}")
+
+        formatted_notes = await longcat_service.format_notes(phase1_notes, longcat_format_model)
+
+        logger.success(f"[PHASE 2] Formatted notes generated ({len(formatted_notes)} characters)")
+        logger.info("=" * 80)
         logger.info("[PHASE 2] LONGCAT OUTPUT (FULL):")
-        logger.info("="*80)
+        logger.info("=" * 80)
         logger.info(formatted_notes)
-        logger.info("="*80)
-        
+        logger.info("=" * 80)
+
         logger.success(f"=== NOTES GENERATION COMPLETED SUCCESSFULLY ===")
-        
+
         return {
             "note": {
                 "content": formatted_notes
             },
-            "model_used": f"{gemini_model} + {longcat_model}",
+            "model_used": f"{phase1_model} + {longcat_format_model}",
             "generation_phases": {
-                "phase1_model": gemini_model,
-                "phase2_model": longcat_model
+                "phase1_model": phase1_model,
+                "phase2_model": longcat_format_model
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Note generation failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=500, detail=str(e))
-    
+
     finally:
         # Clean up temporary files
         for file_path in temp_files:

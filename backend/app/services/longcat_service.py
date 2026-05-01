@@ -126,5 +126,40 @@ Return the properly formatted notes:"""
         return await self.generate_text(prompt, model_name, system_prompt=system_prompt)
 
 
+    async def generate_notes(
+        self,
+        text: str,
+        model_name: str = "longcat-2.0-preview",
+    ) -> str:
+        """Generate simple, unformatted study notes (Phase 1 of 2-phase generation)."""
+        prompt = f"""
+You are a study notes generator that transforms provided files into **concise, exam-focused study notes**.
+
+Your task is to extract and organize the key information from the content. Focus on content accuracy and completeness. The formatting will be handled in a subsequent step.
+
+## Required Structure
+Include sections only if relevant:
+- Title (infer from content)
+- Overview (1-2 sentences summarizing the main topic)
+- Key Takeaways (5–10 bullet points)
+- Concepts (organized by topic with inline citations like (page#X) or (slide#X))
+- Formulas/Definitions (if applicable)
+- Procedures/Algorithms (if applicable — numbered steps)
+- Examples (if applicable — concrete examples with explanations)
+- Questions for Review MANDATORY (3–9 exam-style questions)
+- Answers MANDATORY (brief answers to all questions above)
+- Teach It Simply MANDATORY LAST SECTION (child-friendly explanations with 2–5 real-world analogies)
+
+Include inline citations as (page#X) or (slide#X) when referencing source material.
+Mark especially important topics with (IMP) after the heading.
+
+Content:
+{text}
+
+Generate concise and to-the-point structured study notes:"""
+
+        return await self.generate_text(prompt, model_name)
+
+
 # Global instance
 longcat_service = LongCatService()
