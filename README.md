@@ -37,6 +37,7 @@
 <p align="center">
   <img src="src/assets/WEB UI.PNG" alt="Study Buddy Web UI" width="800">
 </p>
+
 ---
 
 <h3 align="center">🎯 A Complete AI-Powered Productivity Suite for Students</h3>
