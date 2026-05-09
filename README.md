@@ -22,11 +22,7 @@
   <img src="https://img.shields.io/github/downloads/H0NEYP0T-466/StudyBuddy/total?style=for-the-badge&color=blue" alt="Downloads">
 </p>
 
-## 🖥️ Web UI Preview
 
-<p align="center">
-  <img src="src/assets/WEB UI.PNG" alt="Study Buddy Web UI" width="800">
-</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/code%20style-standard-brightgreen?style=for-the-badge" alt="Code Style">
@@ -35,6 +31,12 @@
   <img src="https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg?style=for-the-badge" alt="Open Source Love">
 </p>
 
+
+## 🖥️ Web UI Preview
+
+<p align="center">
+  <img src="src/assets/WEB UI.PNG" alt="Study Buddy Web UI" width="800">
+</p>
 ---
 
 <h3 align="center">🎯 A Complete AI-Powered Productivity Suite for Students</h3>
