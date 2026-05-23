@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
 
-BASE_URL = "http://localhost:5173"  # Update this if your app runs on a different port
+BASE_URL = "http://localhost:5173"  
 
 def test_dashboard():
     print("Running Dashboard Test...")
