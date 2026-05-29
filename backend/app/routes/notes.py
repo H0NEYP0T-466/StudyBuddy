@@ -173,7 +173,7 @@ async def delete_note(note_id: str):
 # --------------------------------------------------------------------------- #
 #  LongCat model identifiers that use Mistral OCR → LongCat notes pipeline
 # --------------------------------------------------------------------------- #
-LONGCAT_NOTES_MODELS = {"LongCat-2.0-Preview", "longcat-flash-thinking-2601"}
+LONGCAT_NOTES_MODELS = {"LongCat-2.0-Preview"}
 
 
 @router.post("/generate")
@@ -185,8 +185,7 @@ async def generate_notes(
 
     Supported model paths:
         gemini-*                      → Gemini (native file upload) + LongCat formatting
-        longcat-2.0-preview           → Mistral OCR + LongCat 2.0 Preview + LongCat formatting
-        longcat-flash-thinking-2601   → Mistral OCR + LongCat Flash Thinking + LongCat formatting
+        LongCat-2.0-Preview           → Mistral OCR + LongCat 2.0 Preview + LongCat formatting
     """
     logger.info(f"=== NOTES GENERATION STARTED ===")
     logger.info(f"Requested model: {model}")
@@ -254,9 +253,9 @@ async def generate_notes(
         logger.info("=" * 80)
 
         # ================================================================== #
-        #  PHASE 2: Format notes using LongCat-Flash-Lite
+        #  PHASE 2: Format notes using LongCat 2.0 Preview
         # ================================================================== #
-        longcat_format_model = "longcat-flash-lite"
+        longcat_format_model = "LongCat-2.0-Preview"
         logger.info(f"[PHASE 2] Starting LongCat formatting with model: {longcat_format_model}")
 
         formatted_notes = await longcat_service.format_notes(phase1_notes, longcat_format_model)

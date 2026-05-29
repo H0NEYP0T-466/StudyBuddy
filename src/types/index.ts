@@ -112,10 +112,6 @@ export const AI_MODELS = [
   
   // LongCat Models
   { value: 'LongCat-2.0-Preview', label: 'LongCat-2.0-Preview', supportsFiles: false },
-  { value: 'longcat-flash-lite', label: 'LongCat-Flash-Lite', supportsFiles: false },
-  { value: 'longcat-flash-chat', label: 'LongCat-Flash-Chat', supportsFiles: false },
-  { value: 'longcat-flash-thinking', label: 'LongCat-Flash-Thinking', supportsFiles: false },
-  { value: 'longcat-flash-thinking-2601', label: 'LongCat-Flash-Thinking-2601', supportsFiles: false },
   
   // GitHub Models
   { value: 'gpt-4o', label: 'gpt-4o', supportsFiles: false },

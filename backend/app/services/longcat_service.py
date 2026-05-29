@@ -11,7 +11,7 @@ class LongCatService:
     async def generate_text(
         self, 
         prompt: str, 
-        model_name: str = "longcat-flash-chat",
+        model_name: str = "LongCat-2.0-Preview",
         chat_history: Optional[List[Dict]] = None,
         system_prompt: Optional[str] = None
     ) -> str:
@@ -56,7 +56,7 @@ class LongCatService:
         except Exception as e:
             return f"Error generating with LongCat: {str(e)}"
     
-    async def format_notes(self, gemini_notes: str, model_name: str = "longcat-flash-lite") -> str:
+    async def format_notes(self, gemini_notes: str, model_name: str = "LongCat-2.0-Preview") -> str:
         """Format Gemini-generated notes with strict formatting rules using LongCat."""
         system_prompt = """You are a markdown formatting expert. Your task is to take provided notes and format them correctly according to specific markdown formatting rules.
 

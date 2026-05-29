@@ -12,7 +12,6 @@ const NOTES_MODELS = [
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   { value: 'LongCat-2.0-Preview', label: 'LongCat 2.0 Preview' },
-  { value: 'longcat-flash-thinking-2601', label: 'LongCat Flash Thinking 2601' },
 ];
 
 const NotesGenerator = () => {
