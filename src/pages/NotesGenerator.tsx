@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
-import { generateNotes, getFolders, createNote, exportPen2PDF } from '../services/api';
+import { generateNotes, getFolders, createNote, exportPen2PDF, formatNotes } from '../services/api';
 import type { Folder } from '../types';
 import 'katex/dist/katex.min.css';
 import './NotesGenerator.css';
@@ -20,6 +20,7 @@ const NotesGenerator = () => {
   const [markdown, setMarkdown] = useState('');
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(false);
+  const [formatting, setFormatting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -94,6 +95,30 @@ const NotesGenerator = () => {
       setErrorMessage('Failed to generate notes. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLongCatFormat = async () => {
+    if (!markdown) return;
+
+    setFormatting(true);
+    setErrorMessage('');
+    try {
+      const response = await formatNotes({ content: markdown });
+      if (response.data.error) {
+        console.warn('LongCat formatting returned error:', response.data.error);
+        setErrorMessage(`LongCat formatting failed: ${response.data.error}. Original notes kept!`);
+      } else {
+        setMarkdown(response.data.content);
+        setErrorMessage('Notes formatted with LongCat successfully!');
+      }
+      setTimeout(() => setErrorMessage(''), 5000);
+    } catch (error) {
+      console.error('LongCat formatting failed:', error);
+      setErrorMessage('Failed to format notes. Original notes kept!');
+      setTimeout(() => setErrorMessage(''), 5000);
+    } finally {
+      setFormatting(false);
     }
   };
 
@@ -313,7 +338,7 @@ const NotesGenerator = () => {
 
             <button
               onClick={handleGenerate}
-              disabled={!file || loading}
+              disabled={!file || loading || formatting}
               className="generate-button"
             >
               {loading ? '⏳ Generating...' : '✨ Generate Notes'}
@@ -321,7 +346,7 @@ const NotesGenerator = () => {
 
             <button
               onClick={handleStartEmpty}
-              disabled={loading}
+              disabled={loading || formatting}
               className="generate-button secondary"
             >
               📝 Start Empty Document
@@ -379,16 +404,23 @@ const NotesGenerator = () => {
               )}
 
               <div className="toolbar-right">
-                <button onClick={handleSaveToNotes} className="save-notes-button" disabled={loading}>
+                <button
+                  onClick={handleLongCatFormat}
+                  className="longcat-format-button"
+                  disabled={loading || formatting}
+                >
+                  {formatting ? '⏳ Formatting...' : '🐱 LongCat Format'}
+                </button>
+                <button onClick={handleSaveToNotes} className="save-notes-button" disabled={loading || formatting}>
                   💾 Save to Notes
                 </button>
-                <button onClick={() => handleExport('markdown')} className="export-button" disabled={loading}>
+                <button onClick={() => handleExport('markdown')} className="export-button" disabled={loading || formatting}>
                   Export MD
                 </button>
-                <button onClick={() => handleExport('docx')} className="export-button" disabled={loading}>
+                <button onClick={() => handleExport('docx')} className="export-button" disabled={loading || formatting}>
                   Export DOCX
                 </button>
-                <button onClick={() => handleExport('pdf')} className="export-button" disabled={loading}>
+                <button onClick={() => handleExport('pdf')} className="export-button" disabled={loading || formatting}>
                   Export PDF
                 </button>
               </div>

@@ -42,6 +42,8 @@ export const generateNotes = (formData: FormData) =>
   api.post<NoteGenerateResponse>('/api/notes/generate', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+export const formatNotes = (data: { content: string }) =>
+  api.post<{ content: string; error?: string }>('/api/notes/format', data);
 export const searchNotes = (query: string) => 
   api.get<Note[]>('/api/notes/search', { params: { q: query } });
 

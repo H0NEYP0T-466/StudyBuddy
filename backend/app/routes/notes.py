@@ -245,44 +245,45 @@ async def generate_notes(
             )
             phase1_model = gemini_model
 
-        logger.success(f"[PHASE 1] Notes generated ({len(phase1_notes)} characters)")
-        logger.info("=" * 80)
-        logger.info("[PHASE 1] OUTPUT (FULL):")
-        logger.info("=" * 80)
-        logger.info(phase1_notes)
-        logger.info("=" * 80)
-
-        # ================================================================== #
-        #  PHASE 2: Format notes using LongCat 2.0 Preview
-        # ================================================================== #
-        longcat_format_model = "LongCat-2.0-Preview"
-        logger.info(f"[PHASE 2] Starting LongCat formatting with model: {longcat_format_model}")
-
-        formatted_notes = await longcat_service.format_notes(phase1_notes, longcat_format_model)
-
-        logger.success(f"[PHASE 2] Formatted notes generated ({len(formatted_notes)} characters)")
-        logger.info("=" * 80)
-        logger.info("[PHASE 2] LONGCAT OUTPUT (FULL):")
-        logger.info("=" * 80)
-        logger.info(formatted_notes)
-        logger.info("=" * 80)
-
         logger.success(f"=== NOTES GENERATION COMPLETED SUCCESSFULLY ===")
 
         return {
             "note": {
-                "content": formatted_notes
+                "content": phase1_notes
             },
-            "model_used": f"{phase1_model} + {longcat_format_model}",
+            "model_used": phase1_model,
             "generation_phases": {
-                "phase1_model": phase1_model,
-                "phase2_model": longcat_format_model
+                "phase1_model": phase1_model
             }
         }
 
     except Exception as e:
         logger.error(f"Note generation failed: {str(e)}", exc_info=e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/format")
+async def format_notes(payload: dict):
+    """Format notes using LongCat on-demand."""
+    content = payload.get("content", "")
+    if not content:
+        raise HTTPException(status_code=400, detail="Content is required")
+
+    logger.info("Starting LongCat on-demand formatting")
+    try:
+        formatted = await longcat_service.format_notes(content)
+        # If longcat service returned an error string, return the original content and the error
+        if formatted.startswith("Error generating with LongCat:") or formatted.startswith("Error:"):
+            logger.warning(f"LongCat formatting failed: {formatted}. Returning original content.")
+            return {"content": content, "error": formatted}
+        
+        logger.success("LongCat formatting completed successfully")
+        return {"content": formatted}
+    except Exception as e:
+        error_msg = f"Error generating with LongCat: {str(e)}"
+        logger.error(f"LongCat formatting failed: {error_msg}")
+        return {"content": content, "error": error_msg}
+
 
     finally:
         # Clean up temporary files

@@ -535,6 +535,35 @@
   cursor: not-allowed;
 }
 
+.longcat-format-button {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, #8a2be2 0%, #4b0082 100%);
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(138, 43, 226, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.longcat-format-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9932cc 0%, #5c0099 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(138, 43, 226, 0.35);
+}
+
+.longcat-format-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 @media (max-width: 768px) {
   .options-row {
     flex-direction: column;
