@@ -124,12 +124,20 @@ class RAGSystem:
             # Extract embeddings for documents to keep
             if indices_to_keep:
                 print(f"Removing {len(self.documents) - len(indices_to_keep)} chunks from index")
-                # Re-embed kept documents via Mistral
-                chunks_to_keep = [doc['chunk'] for doc in docs_to_keep]
-                if chunks_to_keep:
+                # Optimisation: Rather than calling the external Mistral API to re-embed
+                # the existing chunks (which is slow, costly, and error-prone), we can
+                # reconstruct the vectors directly from the local FAISS index.
+                if self.index.ntotal == len(self.documents):
+                    all_vectors = self.index.reconstruct_n(0, self.index.ntotal)
+                    embeddings = all_vectors[indices_to_keep]
+                else:
+                    # Fallback in case of mismatch (highly unlikely)
+                    print("Warning: FAISS index size does not match metadata length. Re-embedding via Mistral API...")
+                    chunks_to_keep = [doc['chunk'] for doc in docs_to_keep]
                     embeddings = await mistral_service.get_embeddings(chunks_to_keep)
-                    self.index = faiss.IndexFlatL2(self.dimension)
-                    self.index.add(embeddings)
+                
+                self.index = faiss.IndexFlatL2(self.dimension)
+                self.index.add(embeddings)
             else:
                 # No documents to keep, reset index
                 self.index = faiss.IndexFlatL2(self.dimension)
