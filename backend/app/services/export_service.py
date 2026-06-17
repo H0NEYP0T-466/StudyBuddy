@@ -536,12 +536,176 @@ def parse_markdown_to_reportlab(content: str, styles) -> list:
     return elements, temp_image_files
 
 
+# ==========================
+# Unicode / block-char math helpers
+# ==========================
+
+# Mapping of Unicode subscript/superscript characters to (LaTeX-prefix, LaTeX-value).
+# These characters appear in AI-generated content but may not be present in all
+# PDF fonts (e.g. Helvetica fallback), causing them to render as ■ blocks.
+_UNICODE_MATH_CHARS: dict = {
+    # Superscripts
+    'ᵀ': ('^', 'T'),   # U+1D40  transpose
+    '⁻': ('^', '-'),   # U+207B  superscript minus
+    '⁰': ('^', '0'), '¹': ('^', '1'), '²': ('^', '2'), '³': ('^', '3'),
+    '⁴': ('^', '4'), '⁵': ('^', '5'), '⁶': ('^', '6'), '⁷': ('^', '7'),
+    '⁸': ('^', '8'), '⁹': ('^', '9'),
+    # Subscripts
+    '₀': ('_', '0'), '₁': ('_', '1'), '₂': ('_', '2'), '₃': ('_', '3'),
+    '₄': ('_', '4'), '₅': ('_', '5'), '₆': ('_', '6'), '₇': ('_', '7'),
+    '₈': ('_', '8'), '₉': ('_', '9'),
+    'ᵢ': ('_', 'i'),  # U+1D62  subscript i
+    'ₙ': ('_', 'n'),  # U+2099  subscript n
+    'ₖ': ('_', 'k'),  # U+2096  subscript k
+}
+
+
+def fix_square_blocks(text: str) -> str:
+    """
+    Convert ■ (U+25A0 BLACK SQUARE) characters used as math placeholders to LaTeX.
+
+    Some AI models output ■ as a stand-in for subscript/superscript characters
+    they cannot represent in plain text.  This function recognises common
+    mathematical patterns and replaces them with ``$...$``-delimited LaTeX so
+    they are rendered via matplotlib's mathtext engine.
+
+    Patterns handled (in order of specificity):
+
+    1. ``||expr||■²``    → ``$||expr||_2^2$``   (L2 norm squared)
+    2. ``)■¹``           → ``$)^{-1}$``          (matrix inverse)
+    3. ``word■²``        → ``$word_i^2$``         (indexed element squared)
+    4. ``■¹``            → ``$^{-1}$``            (remaining inverse notation)
+    5. ``■²``            → ``$^2$``               (remaining squared notation)
+    6. ``word■word``     → ``$word^Tword$``        (matrix transpose)
+    7. Any remaining ``■`` is removed.
+    """
+    if '\u25a0' not in text:
+        return text
+
+    # 1. L2 norm squared: ||expr||■² → $||expr||_2^2$
+    text = re.sub(
+        r'\|\|([^|■\n]+)\|\|■²',
+        lambda m: f'$||{m.group(1)}||_2^2$',
+        text,
+    )
+
+    # 2. Matrix inverse: )■¹ → $)^{-1}$ (include ) inside LaTeX for correct ^{-1} attachment)
+    text = re.sub(r'\)■¹', r'$)^{-1}$', text)
+
+    # 3. Indexed element squared: word■² → $word_i^2$  (e.g. θ■² → $θ_i^2$)
+    # Must run before the general transpose pattern because ² is a Unicode word char.
+    text = re.sub(r'(\w)■²', lambda m: f'${m.group(1)}_i^2$', text)
+
+    # 4–5. Remaining ■¹ / ■² that did not match earlier patterns
+    text = text.replace('■¹', '$^{-1}$')
+    text = text.replace('■²', '$^2$')
+
+    # 6. Transpose: word■word → $word^Tword$  (e.g. X■X → $X^TX$, X■y → $X^Ty$)
+    # \w matches Unicode letters so Greek variables (θ, λ …) are included.
+    # Runs after the ■² / ■¹ patterns to avoid misidentifying squared/inverse as transpose.
+    text = re.sub(
+        r'(\w+)■(\w+)',
+        lambda m: f'${m.group(1)}^T{m.group(2)}$',
+        text,
+    )
+
+    # 7. Any other stray ■ – remove to avoid rendering artefacts
+    text = text.replace('■', '')
+
+    return text
+
+
+def unicode_math_to_latex(text: str) -> str:
+    """
+    Convert Unicode mathematical sub/superscript characters to LaTeX notation.
+
+    AI models sometimes produce Unicode superscript/subscript characters
+    (e.g. ᵀ for transpose, ₂ for subscript 2, ᵢ for subscript i) in plain text.
+    These characters may be absent from the PDF fallback font (Helvetica) and
+    therefore render as ■ blocks.  This function replaces them with
+    ``$...$``-delimited LaTeX equivalents that are rendered via matplotlib.
+
+    Text that is already inside ``$...$`` delimiters is left untouched.
+    """
+    all_math = set(_UNICODE_MATH_CHARS)
+    if not any(c in text for c in all_math):
+        return text
+
+    # Process only segments that are NOT already inside $...$ delimiters.
+    segments = re.split(r'(\$[^$]+\$)', text)
+    result = []
+    for seg in segments:
+        if seg.startswith('$') and seg.endswith('$') and len(seg) >= 3:
+            result.append(seg)
+        elif any(c in seg for c in all_math):
+            result.append(_apply_unicode_math_conversion(seg))
+        else:
+            result.append(seg)
+    return ''.join(result)
+
+
+def _apply_unicode_math_conversion(text: str) -> str:
+    """Replace Unicode math characters in a plain-text segment with LaTeX."""
+    esc_chars = ''.join(re.escape(c) for c in _UNICODE_MATH_CHARS)
+
+    # Match a base expression (word chars + |) followed by one or more unicode
+    # math characters, optionally followed by more word chars (trailing context
+    # such as the 'y' in X^Ty).
+    # \w matches Unicode letters, so Greek variables (θ, λ …) are captured.
+    pattern = rf'([\w\|]+)([{esc_chars}]+)(\w*)'
+
+    def _replace(m: re.Match) -> str:
+        base    = m.group(1)
+        scripts = m.group(2)
+        trail   = m.group(3)
+
+        subs = ''
+        sups = ''
+        for ch in scripts:
+            prefix, val = _UNICODE_MATH_CHARS[ch]
+            if prefix == '_':
+                subs += val
+            else:
+                sups += val
+
+        latex = base
+        if subs:
+            latex += f'_{{{subs}}}' if len(subs) > 1 else f'_{subs}'
+        if sups:
+            latex += f'^{{{sups}}}' if len(sups) > 1 else f'^{sups}'
+        latex += trail
+        return f'${latex}$'
+
+    text = re.sub(pattern, _replace, text)
+
+    # Special case: ) followed by superscript chars (e.g. )⁻¹ → $)^{-1}$)
+    sup_chars = ''.join(
+        re.escape(c) for c, (pfx, _) in _UNICODE_MATH_CHARS.items() if pfx == '^'
+    )
+    paren_sup_pattern = rf'\)([{sup_chars}]+)'
+
+    def _replace_paren_sup(m: re.Match) -> str:
+        sups = ''.join(
+            _UNICODE_MATH_CHARS[ch][1]
+            for ch in m.group(1)
+            if _UNICODE_MATH_CHARS.get(ch, ('^', ''))[0] == '^'
+        )
+        script = f'^{{{sups}}}' if len(sups) > 1 else f'^{sups}'
+        return f'$){script}$'
+
+    text = re.sub(paren_sup_pattern, _replace_paren_sup, text)
+
+    return text
+
+
 def fix_latex_delimiters(text: str) -> str:
     """
     Fix common LaTeX delimiter issues and normalise all LaTeX delimiters to
     the single-dollar ``$...$`` form expected by the rendering pipeline.
 
     Conversions performed (in order):
+    0. ■ (U+25A0) math-placeholder blocks → LaTeX (via ``fix_square_blocks``)
+    0b. Unicode sub/superscript chars     → LaTeX (via ``unicode_math_to_latex``)
     1. Backtick-enclosed LaTeX: `` `$...$` `` or `` `$...` `` → ``$...$``
     2. Display-math double-dollars: ``$$...$$`` → ``$...$``
     3. LaTeX display-math brackets: ``\\[...\\]`` → ``$...$``
@@ -554,6 +718,12 @@ def fix_latex_delimiters(text: str) -> str:
     Returns:
         Text with normalised ``$...$`` LaTeX delimiters.
     """
+    # 0. Convert ■ math-placeholder blocks to LaTeX before any other processing.
+    text = fix_square_blocks(text)
+
+    # 0b. Convert Unicode sub/superscript chars to LaTeX for font-independence.
+    text = unicode_math_to_latex(text)
+
     # 1. Backtick-enclosed LaTeX: `$...$` or `$...` -> $...$
     text = re.sub(r'`\$([^$`]+)\$`', r'$\1$', text)  # `$...$` -> $...$
     text = re.sub(r'`\$([^$`]+)`', r'$\1$', text)    # `$...` -> $...$

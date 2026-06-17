@@ -100,6 +100,16 @@ class LongCatService:
 - Summations: `\\sum_{{i=1}}^{{n}}` (e.g., `$\\sum_{{i=1}}^{{n}} x_i$`)
 - Square roots: `\\sqrt{{expression}}` (e.g., `$\\sqrt{{x^2 + y^2}}$`)
 - Piecewise functions: Use `\\begin{{cases}}...\\end{{cases}}`
+- Matrix transpose: `$X^T$` (e.g., `$X^TX$` for X-transpose times X)
+- Matrix inverse: `$(A)^{{-1}}$` (e.g., `$(X^TX + \\lambda I)^{{-1}}$`)
+- Norms: `$\\|x\\|_2^2$` for L2 norm squared, `$\\|x\\|_2$` for L2 norm
+- Indexed variables: `$\\theta_i$` for theta sub i, `$\\theta_i^2$` for squared
+
+**CRITICAL — NEVER use these in output:**
+- ■ (U+25A0 BLACK SQUARE) as a math placeholder — it renders as a black block
+- Unicode superscript letters like ᵀ (use `$X^T$` instead)
+- Unicode subscript digits like ₂ (use `$x_2$` instead)
+- Any Unicode character in the ranges U+1D00–U+1D7F or U+2070–U+209F for math
 
 ### 5. Horizontal Rules
 - Use `---`, `***`, or `___` to separate major sections

@@ -13,6 +13,8 @@ import pytest
 
 from app.services.export_service import (
     fix_latex_delimiters,
+    fix_square_blocks,
+    unicode_math_to_latex,
     format_inline_markdown,
     parse_markdown_to_reportlab,
     create_styles,
@@ -298,3 +300,141 @@ class TestPdfLatexEndToEnd:
         elements, temp_files = parse_markdown_to_reportlab(content, styles)
         # Should produce flowables without raising
         assert len(elements) > 0
+
+
+# ===========================================================================
+# fix_square_blocks – ■ (U+25A0) placeholder conversion
+# ===========================================================================
+class TestFixSquareBlocks:
+    """■ (U+25A0) math placeholders must be converted to LaTeX."""
+
+    def test_no_square_blocks_unchanged(self):
+        text = "Plain text without any square blocks."
+        from app.services.export_service import fix_square_blocks
+        assert fix_square_blocks(text) == text
+
+    def test_l2_norm_squared(self):
+        """||expr||■² → $||expr||_2^2$"""
+        text = "R(θ) = (1/2)||θ||■²"
+        result = fix_square_blocks(text)
+        assert '■' not in result
+        assert '$' in result
+        assert '_2^2' in result
+        assert 'θ' in result
+
+    def test_matrix_inverse(self):
+        """)■¹ → $)^{-1}$"""
+        text = "Solution: (X■X + λI)■¹X■y"
+        result = fix_square_blocks(text)
+        assert '■' not in result
+        assert '^{-1}' in result
+
+    def test_matrix_transpose(self):
+        """word■word → $word^Tword$"""
+        text = "X■X and X■y"
+        result = fix_square_blocks(text)
+        assert '■' not in result
+        assert '^T' in result
+
+    def test_indexed_element_squared(self):
+        """θ■² → $θ_i^2$"""
+        text = "(1/2)Σ(θ■²)"
+        result = fix_square_blocks(text)
+        assert '■' not in result
+        assert '_i^2' in result
+
+    def test_full_regularizer_formula(self):
+        """Full R(θ) = (1/2)||θ||■² = (1/2)Σ(θ■²) example from issue."""
+        text = "R(θ) = (1/2)||θ||■² = (1/2)Σ(θ■²)"
+        result = fix_square_blocks(text)
+        assert '■' not in result
+        assert '_2^2' in result  # L2 norm subscript
+        assert '_i^2' in result  # indexed element
+
+    def test_full_loss_function_formula(self):
+        """Full L_reg formula with multiple norm terms."""
+        text = "L_reg(θ) = (1/2)||(y - Xθ)||■² + (λ/2)||θ||■²"
+        result = fix_square_blocks(text)
+        assert '■' not in result
+        assert result.count('_2^2') == 2  # Two norm terms
+
+    def test_full_analytical_solution_formula(self):
+        """Full θ(λ) = (X■X + λI)■¹X■y example from issue."""
+        text = "θ(λ) = (X■X + λI)■¹X■y"
+        result = fix_square_blocks(text)
+        assert '■' not in result
+        assert '^T' in result     # transpose
+        assert '^{-1}' in result  # inverse
+
+    def test_via_fix_latex_delimiters(self):
+        """fix_latex_delimiters must invoke fix_square_blocks."""
+        text = "θ(λ) = (X■X + λI)■¹X■y"
+        result = fix_latex_delimiters(text)
+        assert '■' not in result
+        assert '^T' in result
+        assert '^{-1}' in result
+
+    def test_produces_valid_pdf(self):
+        """Content with ■ blocks must produce a valid PDF after conversion."""
+        import io
+        import asyncio
+        text = (
+            "• R(θ) = (1/2)||θ||■² = (1/2)Σ(θ■²)\n"
+            "• θ(λ) = (X■X + λI)■¹X■y"
+        )
+        pdf = asyncio.get_event_loop().run_until_complete(
+            export_service.export_to_pdf(text, "Block Fix Test", watermark=False)
+        )
+        assert isinstance(pdf, io.BytesIO)
+        assert pdf.read()[:4] == b"%PDF"
+
+
+# ===========================================================================
+# unicode_math_to_latex – Unicode subscript/superscript conversion
+# ===========================================================================
+class TestUnicodeMathToLatex:
+    """Unicode sub/superscript characters must be converted to LaTeX."""
+
+    def test_no_unicode_math_unchanged(self):
+        text = "Plain text without any math chars."
+        assert unicode_math_to_latex(text) == text
+
+    def test_transpose_superscript(self):
+        """ᵀ → ^T wrapped in $...$"""
+        result = unicode_math_to_latex("XᵀX")
+        assert 'ᵀ' not in result
+        assert '^T' in result
+        assert '$' in result
+
+    def test_subscript_digit(self):
+        """₂ → _2 wrapped in $...$"""
+        result = unicode_math_to_latex("x₂")
+        assert '₂' not in result
+        assert '_2' in result
+        assert '$' in result
+
+    def test_subscript_i(self):
+        """ᵢ → _i wrapped in $...$"""
+        result = unicode_math_to_latex("θᵢ")
+        assert 'ᵢ' not in result
+        assert '_i' in result
+        assert '$' in result
+
+    def test_superscript_minus_after_paren(self):
+        """⁻¹ after ) → $)^{-1}$"""
+        result = unicode_math_to_latex("(A + B)⁻¹")
+        assert '⁻' not in result
+        assert '^' in result
+
+    def test_existing_latex_not_modified(self):
+        """Text already inside $...$ should not be double-processed."""
+        original = "Value $X^T$ here"
+        result = unicode_math_to_latex(original)
+        assert result == original
+
+    def test_via_fix_latex_delimiters(self):
+        """fix_latex_delimiters must invoke unicode_math_to_latex."""
+        text = "Solution XᵀX + λ"
+        result = fix_latex_delimiters(text)
+        assert 'ᵀ' not in result
+        assert '^T' in result
